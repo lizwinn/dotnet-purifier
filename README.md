@@ -21,16 +21,35 @@ nix run github:nix-purifiers/dotnet-purifier -- lock
 Commit `dotnet-purifier.lock.json`, together with any `packages.lock.json`
 files of your projects. We recommend committing both lockfiles, and the
 builder and the commands look for them in the repository by default. Then
-build with Nix. The flake's `overlays.default` adds one attribute to a
-package set, the scope `dotnet-purifier`, which holds the builder
-`buildDotnetProject` and the command. A package written for `callPackage`
-takes the scope by name:
+build the project with Nix from the same directory. The build needs no Nix
+file in the project:
 
-```nix
-# package.nix
-{ dotnet-purifier }:
-(dotnet-purifier.buildDotnetProject { src = ./.; }).packages.App
+```zsh
+nix build --impure --expr '
+  let
+    purifier = builtins.getFlake "github:nix-purifiers/dotnet-purifier";
+    pkgs = import purifier.inputs.nixpkgs {
+      system = builtins.currentSystem;
+      overlays = [ purifier.overlays.default ];
+    };
+  in
+  (pkgs.dotnet-purifier.buildDotnetProject { src = ./.; }).packages.App'
 ```
+
+This uses the purifier's pinned nixpkgs, matching the lock command above.
+To build with ambient `<nixpkgs>` from your Nix search path instead,
+replace `import purifier.inputs.nixpkgs` with `import <nixpkgs>`.
+Both forms need no Nix files in your project. The build tool and language
+versions must match the lockfile; with ambient nixpkgs, lock with the
+purifier from that package set or pass a compatible toolchain to the builder.
+
+This builds the project in `App.csproj`. Each project is named after its
+project file. The overlay `overlays.default` adds one attribute to a
+package set, the scope `dotnet-purifier`, which holds the builder
+`buildDotnetProject` and the command.
+
+To package the project in a flake, which can live in the project's
+repository or in another one, call the builder in the flake's outputs:
 
 ```nix
 # flake.nix
@@ -43,21 +62,18 @@ takes the scope by name:
       system = "x86_64-linux";
       pkgs = import nixpkgs {
         inherit system;
-        overlays = [
-          dotnet-purifier.overlays.default
-          (final: prev: { app = final.callPackage ./package.nix { }; })
-        ];
+        overlays = [ dotnet-purifier.overlays.default ];
       };
+      build = pkgs.dotnet-purifier.buildDotnetProject { src = ./.; };
     in
     {
-      packages.${system}.default = pkgs.app;
-      checks.${system}.tests = (pkgs.dotnet-purifier.buildDotnetProject { src = ./.; }).tests;
+      packages.${system}.default = build.packages.App;
+      checks.${system}.tests = build.tests;
     };
 }
 ```
 
-`nix build` builds the project in `App.csproj`. Each project is named after
-its project file. The builder returns
+The builder returns
 
 - `packages.<project>`: an executable is published under `lib/<project>`
   with a command in `bin/` named after its assembly; a packable library is
@@ -229,78 +245,34 @@ differs. Workload tools run interactively on NixOS with `programs.nix-ld`.
 
 [FluentValidation](https://github.com/FluentValidation/FluentValidation) is
 a .NET validation library with a solution of packable libraries, a
-benchmark executable and a test project. To work on it with the locked
-packages, clone it, lock it and use the development loop:
+benchmark executable and a test project. To lock it, build it with Nix and
+work on it with the locked packages, clone it and run these commands in the
+clone:
 
 ```zsh
 git clone https://github.com/FluentValidation/FluentValidation
 cd FluentValidation
 nix run github:nix-purifiers/dotnet-purifier -- lock
+nix build --impure --expr '
+  let
+    purifier = builtins.getFlake "github:nix-purifiers/dotnet-purifier";
+    pkgs = import purifier.inputs.nixpkgs {
+      system = builtins.currentSystem;
+      overlays = [ purifier.overlays.default ];
+    };
+  in
+  (pkgs.dotnet-purifier.buildDotnetProject { src = ./.; }).packages.FluentValidation'
 nix run github:nix-purifiers/dotnet-purifier -- dotnet test
 ```
 
-FluentValidation does not commit a dotnet-purifier lockfile, so packaging it
-with Nix is an external build: the lockfile lives in a flake of your own,
-next to a package that passes it as `lockFile`:
+The build gives the package of the main library. Its tests are the
+attribute `tests` of the same builder result, which runs them on every
+framework the test project targets.
 
-```nix
-# package.nix
-{ dotnet-purifier, src }:
-(dotnet-purifier.buildDotnetProject {
-  inherit src;
-  lockFile = ./dotnet-purifier.lock.json;
-}).packages.FluentValidation
-```
-
-The flake takes FluentValidation as an input and gives it to the package
-as `src`:
-
-```nix
-# flake.nix
-{
-  inputs.dotnet-purifier.url = "github:nix-purifiers/dotnet-purifier";
-  inputs.nixpkgs.follows = "dotnet-purifier/nixpkgs";
-  inputs.fluentvalidation = {
-    url = "github:FluentValidation/FluentValidation";
-    flake = false;
-  };
-
-  outputs = { nixpkgs, dotnet-purifier, fluentvalidation, ... }:
-    let
-      system = "x86_64-linux";
-      pkgs = import nixpkgs {
-        inherit system;
-        overlays = [
-          dotnet-purifier.overlays.default
-          (final: prev: {
-            fluentvalidation = final.callPackage ./package.nix { src = fluentvalidation; };
-          })
-        ];
-      };
-    in
-    {
-      packages.${system}.default = pkgs.fluentvalidation;
-      checks.${system}.tests =
-        (pkgs.dotnet-purifier.buildDotnetProject {
-          src = fluentvalidation;
-          lockFile = ./dotnet-purifier.lock.json;
-        }).tests;
-    };
-}
-```
-
-Write the lockfile from a clone at the commit the flake pins, which
-`nix flake metadata` shows for the `fluentvalidation` input:
-
-```zsh
-cd FluentValidation
-git checkout <revision of the fluentvalidation input>
-nix run github:nix-purifiers/dotnet-purifier -- lock --lockfile ../my-flake/dotnet-purifier.lock.json
-```
-
-`nix build` then builds the package of the main library, and
-`nix flake check` runs the tests on every framework the test project
-targets.
+FluentValidation does not commit a dotnet-purifier lockfile. To keep the
+lockfile in a flake of your own instead, run `lock` with
+`--lockfile <path>` and pass the file to the builder as `lockFile`, with
+FluentValidation as the `src` of the flake.
 
 ## Credits
 
