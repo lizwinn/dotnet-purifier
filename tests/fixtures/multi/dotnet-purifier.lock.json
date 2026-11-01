@@ -9,7 +9,7 @@
     "src/Greeter/Greeter.csproj",
     "test/Greeter.Tests/Greeter.Tests.csproj"
   ],
-  "definitionHash": "sha256-emVw8rQ9LtnfYdeCKc9evVwQtsPub+QmMoG6+AHUy18=",
+  "definitionHash": "sha256-xo7x55ZJAgecZ8S6VDvAX5MPwLhjJBcVpT7Y0J6ZzzQ=",
   "tools": false,
   "workloads": [],
   "projects": [
@@ -36,11 +36,10 @@
       "kind": "package",
       "assemblyName": "Greeter",
       "targetFrameworks": [
+        "net8.0",
         "net10.0"
       ],
-      "frameworkReferences": [
-        "Microsoft.NETCore.App"
-      ],
+      "frameworkReferences": [],
       "packageId": "Example.Greeter",
       "packageVersion": "1.0.0",
       "artifacts": [
@@ -53,11 +52,10 @@
       "kind": "test",
       "assemblyName": "Greeter.Tests",
       "targetFrameworks": [
+        "net8.0",
         "net10.0"
       ],
-      "frameworkReferences": [
-        "Microsoft.NETCore.App"
-      ],
+      "frameworkReferences": [],
       "artifacts": []
     }
   ],
@@ -67,6 +65,12 @@
       "url": "https://api.nuget.org/v3-flatcontainer/humanizer.core/2.14.1/humanizer.core.2.14.1.nupkg",
       "mirrors": [],
       "hash": "sha512-yzqGU/HKNLZ9Uvr6kvSc3wYV/S5O/IvklIUW5WF7MuivGLY8wS5IZnLPkt7D1KW8Et2Enl0I3Lzg2vGWM24Xsw=="
+    },
+    {
+      "path": "microsoft.aspnetcore.app.ref/8.0.33/microsoft.aspnetcore.app.ref.8.0.33.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/microsoft.aspnetcore.app.ref/8.0.33/microsoft.aspnetcore.app.ref.8.0.33.nupkg",
+      "mirrors": [],
+      "hash": "sha512-l4Au1RN1mRlq9VZOyEVygQfuBgRwtlliXjQYapMlshSDSeJzfwmQbUG2JQpqJ+L02eTpwiwqGe9wygulIzRXHg=="
     },
     {
       "path": "microsoft.codecoverage/17.12.0/microsoft.codecoverage.17.12.0.nupkg",
@@ -79,6 +83,12 @@
       "url": "https://api.nuget.org/v3-flatcontainer/microsoft.net.test.sdk/17.12.0/microsoft.net.test.sdk.17.12.0.nupkg",
       "mirrors": [],
       "hash": "sha512-hGf8I8+yo15etavoMd+7OXcOG6/G7HYPDEJg5aQnhMzsxaUpq+udNZzSxmEN9rGTWMZOAVFcyNXNL7YBsN6chw=="
+    },
+    {
+      "path": "microsoft.netcore.app.ref/8.0.33/microsoft.netcore.app.ref.8.0.33.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/microsoft.netcore.app.ref/8.0.33/microsoft.netcore.app.ref.8.0.33.nupkg",
+      "mirrors": [],
+      "hash": "sha512-sT+TrpGAW5ohk1RNlNS+c7QI33CMS/paqBA++RpBvQhBe5RK4qCeYGVQwIvSjb/v/Rh4E8Qv3T8iyacXeomHGA=="
     },
     {
       "path": "microsoft.testplatform.objectmodel/17.12.0/microsoft.testplatform.objectmodel.17.12.0.nupkg",

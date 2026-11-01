@@ -196,10 +196,10 @@ let
     export RestoreSources=${packageFolder}
     # MSBuild starts task hosts through the SDK's MSBuild apphost, which
     # finds the runtime only through DOTNET_ROOT.
-    export DOTNET_ROOT=${sdk}/share/dotnet
+    export DOTNET_ROOT="$dotnetSdk/share/dotnet"
     export NETCoreTargetingPackRoot="$TMPDIR/packs"
     mkdir -p "$HOME" "$XDG_RUNTIME_DIR" "$NUGET_PACKAGES" "$NETCoreTargetingPackRoot"
-    ln -s ${sdk}/share/dotnet/packs/*.Ref "$NETCoreTargetingPackRoot"/
+    ln -s "$dotnetSdk"/share/dotnet/packs/*.Ref "$NETCoreTargetingPackRoot"/
     chmod 700 "$XDG_RUNTIME_DIR"
     cp -rs --no-preserve=mode ${packageFolder}/. "$NUGET_PACKAGES"
     ${lib.optionalString lock.tools "dotnet tool restore --configfile ${toolConfig}"}
@@ -264,8 +264,11 @@ let
         pname = p.name;
         version = p.packageVersion or "0";
         src = filteredSrc;
+        # The SDK of the build: the locked one, or for a test project, the
+        # locked one with the runtimes the project's tests run on.
+        dotnetSdk = attrs.dotnetSdk or sdk;
         nativeBuildInputs = [
-          sdk
+          (attrs.dotnetSdk or sdk)
         ]
         ++ nativeBuildInputs
         ++ (workloadInputs.nativeBuildInputs or [ ])
@@ -286,6 +289,7 @@ let
       // removeAttrs attrs [
         "nativeBuildInputs"
         "buildInputs"
+        "dotnetSdk"
       ]
     );
 
@@ -383,9 +387,33 @@ let
       '';
     };
 
+  # `dotnet test` runs the tests once for each target framework of the
+  # project, each on the runtime of its framework, so the SDK of a test
+  # build carries the nixpkgs runtimes of the other frameworks too.
+  testSdk =
+    p:
+    let
+      majorOf =
+        tfm:
+        let
+          m = builtins.match "net([0-9]+)\\.[0-9]+.*" tfm;
+        in
+        if m == null then null else builtins.head m;
+      others = lib.unique (
+        lib.filter (major: major != null && major != toString lock.sdk.major) (
+          map majorOf p.targetFrameworks
+        )
+      );
+    in
+    if others == [ ] then
+      sdk
+    else
+      dotnetCorePackages.combinePackages ([ sdk ] ++ map (major: dotnetCorePackages."runtime_${major}_0") others);
+
   mkTest =
     p:
     mkBuild p {
+      dotnetSdk = testSdk p;
       installPhase = ''
         runHook preInstall
         ${dotnetSetup}

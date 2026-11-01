@@ -67,6 +67,12 @@ NO_APPHOST = "-p:UseAppHost=false"
 # packs too.
 BUILD_HOSTS = ["linux-x64", "linux-arm64"]
 
+# The lock run builds in one MSBuild process. Worker nodes talk over pipes
+# that MSBuild puts in /tmp on Unix, which not every machine that locks
+# lets a build write, and a lock run gains little from parallel builds.
+# What a build restores does not depend on these switches.
+LOCK_RUN_SWITCHES = ["-m:1", "-nodeReuse:false"]
+
 
 def reference_packs_only(env, directory, dotnet):
     """Points the SDK's packs at a directory with only the targeting packs
@@ -570,14 +576,19 @@ def lock(args):
         for project in projects:
             out = tmp / "out" / project["name"]
             for command in build_commands(project):
-                run(dotnet, [a.replace("{out}", str(out)) for a in command], build, env)
+                run(dotnet, [*(a.replace("{out}", str(out)) for a in command), *LOCK_RUN_SWITCHES], build, env)
             project["artifacts"] = artifacts_of(project, out)
             restore = [a for a in build_commands(project)[0][1:] if a not in ("-o", "{out}")]
             if "-f" in restore:
                 i = restore.index("-f")
                 del restore[i : i + 2]
             for host in BUILD_HOSTS:
-                run(dotnet, ["restore", *restore, f"-p:NETCoreSdkRuntimeIdentifier={host}"], build, env)
+                run(
+                    dotnet,
+                    ["restore", *restore, f"-p:NETCoreSdkRuntimeIdentifier={host}", *LOCK_RUN_SWITCHES],
+                    build,
+                    env,
+                )
 
         sources = configured_sources(dotnet, build, env)
         bases = {}
