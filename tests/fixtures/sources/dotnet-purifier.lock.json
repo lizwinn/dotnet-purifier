@@ -1,0 +1,109 @@
+{
+  "version": 1,
+  "sdk": {
+    "version": "10.0.403",
+    "major": 10
+  },
+  "targets": [
+    "src/Lint/Lint.csproj",
+    "src/Standalone/Standalone.csproj",
+    "src/Web/Web.csproj"
+  ],
+  "definitionHash": "sha256-7O8/8qLwT0/QbIaCq0mErTcaqlP4reNslQXBDvILkBI=",
+  "tools": true,
+  "projects": [
+    {
+      "name": "Lint",
+      "path": "src/Lint/Lint.csproj",
+      "kind": "library",
+      "assemblyName": "Lint",
+      "targetFrameworks": [
+        "net10.0"
+      ],
+      "frameworkReferences": [],
+      "artifacts": [
+        "lib/Lint/Lint.dll"
+      ]
+    },
+    {
+      "name": "Standalone",
+      "path": "src/Standalone/Standalone.csproj",
+      "kind": "exe",
+      "assemblyName": "standalone",
+      "targetFrameworks": [
+        "net10.0"
+      ],
+      "frameworkReferences": [
+        "Microsoft.NETCore.App"
+      ],
+      "selfContained": true,
+      "runtimeIdentifier": "linux-x64",
+      "artifacts": [
+        "bin/standalone"
+      ]
+    },
+    {
+      "name": "Web",
+      "path": "src/Web/Web.csproj",
+      "kind": "exe",
+      "assemblyName": "web",
+      "targetFrameworks": [
+        "net10.0"
+      ],
+      "frameworkReferences": [
+        "Microsoft.AspNetCore.App",
+        "Microsoft.NETCore.App"
+      ],
+      "selfContained": false,
+      "runtimeIdentifier": "",
+      "artifacts": [
+        "bin/web"
+      ]
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "csharpier/1.2.6/csharpier.1.2.6.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/csharpier/1.2.6/csharpier.1.2.6.nupkg",
+      "mirrors": [],
+      "hash": "sha512-YWgCfuK2QyaKniUthbx8pbL5g/QE9UmPoaG5dEQ78JvIYTlZLPuzSShNsVp6gCiFl0inzzOuR0qUykf5IdV8zg=="
+    },
+    {
+      "path": "microsoft.aspnetcore.app.runtime.linux-x64/10.0.14/microsoft.aspnetcore.app.runtime.linux-x64.10.0.14.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/microsoft.aspnetcore.app.runtime.linux-x64/10.0.14/microsoft.aspnetcore.app.runtime.linux-x64.10.0.14.nupkg",
+      "mirrors": [],
+      "hash": "sha512-Cp+0XHjY+V7Ac2boAkKymKHAAvmpitw231tj4LufSuSlKTeMTRBQvjkKXR1ahkY/x+eCJQu3TDIGNmOgElkU0A=="
+    },
+    {
+      "path": "microsoft.build.notargets/3.7.134/microsoft.build.notargets.3.7.134.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/microsoft.build.notargets/3.7.134/microsoft.build.notargets.3.7.134.nupkg",
+      "mirrors": [],
+      "hash": "sha512-marboyLlJImvCxgZ1N7xSAS4cEIQTkNucabiKQXOJs2zV97NphKMWO9GL8v8/rwXyJgtWqgzZhhMSg51luIHzA=="
+    },
+    {
+      "path": "microsoft.netcore.app.host.linux-x64/10.0.14/microsoft.netcore.app.host.linux-x64.10.0.14.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/microsoft.netcore.app.host.linux-x64/10.0.14/microsoft.netcore.app.host.linux-x64.10.0.14.nupkg",
+      "mirrors": [],
+      "hash": "sha512-LqyCvEWkMshyGeeZ1y1KraQ6czMsISLmMB5VKDT4addsZysxjlMC7WbCryVokdAO7juS8htBOZ3+KaDY5FQ6FA=="
+    },
+    {
+      "path": "microsoft.netcore.app.runtime.linux-x64/10.0.14/microsoft.netcore.app.runtime.linux-x64.10.0.14.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/microsoft.netcore.app.runtime.linux-x64/10.0.14/microsoft.netcore.app.runtime.linux-x64.10.0.14.nupkg",
+      "mirrors": [],
+      "hash": "sha512-IfDwQKE3gcK9u7iU7C/bOaqLNfoRf6zvXzGLHsJAbsC7Shwn5ztRCRWjD1mKRk5XUrPO9VWSC1+q8oimXRDlsg=="
+    },
+    {
+      "path": "newtonsoft.json/13.0.3/newtonsoft.json.13.0.3.nupkg",
+      "url": "https://pkgs.dev.azure.com/dnceng/9ee6d478-d288-47f7-aacc-f6e6d082ae6d/_packaging/45bacae2-5efb-47c8-91e5-8ec20c22b4f8/nuget/v3/flat2/newtonsoft.json/13.0.3/newtonsoft.json.13.0.3.nupkg",
+      "mirrors": [],
+      "hash": "sha512-mbJSvHfRxfX3tR/U6n1WU+mWHXswYc+SB/hkOpx8yZZe68hNZGfymJu0cjsaJEkVzCMqePiU6LdIyogqfIn7kg=="
+    }
+  ],
+  "localPackages": [
+    {
+      "path": "example.local/1.0.0/example.local.1.0.0.nupkg",
+      "file": "local-packages/Example.Local.1.0.0.nupkg",
+      "hash": "sha512-Vzus5C6RBLWNmUUU0k5onIISayDBQB9wB8AftIyVUyWmNT/otf2ftaDk0P1sGai5PTEjtEA79nQ9oSuGCHI2dQ=="
+    }
+  ]
+}

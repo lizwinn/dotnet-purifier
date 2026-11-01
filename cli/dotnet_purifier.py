@@ -3,16 +3,20 @@
 
   dotnet-purifier lock [--force] [PROJECT_OR_SOLUTION...]
       Runs the build once with an empty NuGet package folder and records
-      every package NuGet downloads in dotnet-purifier.lock.json at the
-      build root, with the projects the build has. The default is the one
+      every package NuGet installs in dotnet-purifier.lock.json at the build
+      root, with the projects the build has. The default is the one
       solution at the build root, or else every project file below it. The
       lock is renewed only when the build definition changed, unless
       --force is given.
 
   dotnet-purifier dotnet [ARG...]
-      Runs dotnet with every restore reading the locked packages, which
-      Nix fetches into a local feed under .dotnet-purifier/ at the build
-      root.
+      Runs dotnet with the locked packages installed in the NuGet package
+      folder, and with every restore reading only them.
+
+  dotnet-purifier push [ARG...]
+      Builds the build's packable projects with Nix and runs
+      `dotnet nuget push` on each package Nix built, with the given
+      arguments (a --source and an --api-key, for example).
 
 The package that installs this script sets the environment variables
 DOTNET_PURIFIER_NIX_LIB (the Nix library directory), DOTNET_PURIFIER_NIXPKGS
@@ -41,15 +45,43 @@ SOLUTION_SUFFIXES = (".sln", ".slnx")
 # Directories that never belong to the build definition or the build input.
 SKIPPED_DIRS = {"bin", "obj", ".git", STATE_DIR, ".vs", ".idea", "node_modules"}
 
-# The files whose content decides what a restore downloads.
+# The files whose content decides what a restore installs. A .nupkg in the
+# tree is a package of a folder feed.
 DEFINITION_NAMES = {"global.json", "nuget.config", "dotnet-tools.json", "packages.lock.json"}
-DEFINITION_SUFFIXES = PROJECT_SUFFIXES + SOLUTION_SUFFIXES + (".props", ".targets")
+DEFINITION_SUFFIXES = PROJECT_SUFFIXES + SOLUTION_SUFFIXES + (".props", ".targets", ".nupkg")
 
 # MSBuild properties every build of the purifier passes, in the lock run
-# and in the Nix sandbox alike. A framework-dependent build that the
-# `dotnet` command runs needs no apphost, and NuGet's vulnerability audit
-# downloads advisories that a sandboxed build cannot reach.
-BUILD_PROPERTIES = ["-p:Configuration=Release", "-p:UseAppHost=false", "-p:NuGetAudit=false"]
+# and in the Nix sandbox alike. NuGet's vulnerability audit downloads
+# advisories that a sandboxed build cannot reach.
+BUILD_PROPERTIES = ["-p:Configuration=Release", "-p:NuGetAudit=false"]
+
+# A framework-dependent build that the `dotnet` command runs needs no
+# apphost. A self-contained build needs one, since nothing else starts it.
+NO_APPHOST = "-p:UseAppHost=false"
+
+# The runtime identifiers of the machines a Nix build of the lockfile may
+# run on. Some packs are chosen for the machine that builds, such as the
+# Crossgen2 compiler of ReadyToRun builds; the lock run restores each
+# project once more for each of these machines, so the lock holds their
+# packs too.
+BUILD_HOSTS = ["linux-x64", "linux-arm64"]
+
+
+def reference_packs_only(env, directory, dotnet):
+    """Points the SDK's packs at a directory with only the targeting packs
+    (*.Ref) the SDK ships with. The SDK then installs every runtime and
+    host pack it needs from NuGet, where the lock records it, rather than
+    taking the ones a given SDK ships for the machine it runs on. The
+    targeting packs hold reference assemblies, which are the same on every
+    machine, and the package pruning data a restore needs. MSBuild reads
+    environment variables as properties."""
+    shutil.rmtree(directory, ignore_errors=True)
+    directory.mkdir(parents=True)
+    packs = Path(dotnet).parent.parent / "share" / "dotnet" / "packs"
+    for pack in sorted(packs.glob("*.Ref")):
+        (directory / pack.name).symlink_to(pack)
+    env["NETCoreTargetingPackRoot"] = str(directory)
+    return env
 
 
 def fail(message):
@@ -76,12 +108,12 @@ def walk(root):
             yield Path(dirpath) / name
 
 
-def sri(algorithm, path):
-    digest = hashlib.new(algorithm)
+def sha512_sri(path):
+    digest = hashlib.sha512()
     with open(path, "rb") as f:
         for block in iter(lambda: f.read(1 << 20), b""):
             digest.update(block)
-    return f"{algorithm}-" + base64.b64encode(digest.digest()).decode()
+    return "sha512-" + base64.b64encode(digest.digest()).decode()
 
 
 def definition_hash(root, targets):
@@ -111,7 +143,7 @@ def nix_build(expr, out_link=None):
     result = subprocess.run(command, stdout=subprocess.PIPE, text=True, check=False)
     if result.returncode != 0:
         fail("nix build failed")
-    return result.stdout.split()[0]
+    return result.stdout.split()
 
 
 def nixpkgs_expr():
@@ -123,13 +155,20 @@ def nixpkgs_expr():
 def sdk(major):
     """The nixpkgs .NET SDK of a major version, which a Nix build of the
     lockfile uses too."""
-    return nix_build(f"{nixpkgs_expr()}.dotnetCorePackages.sdk_{major}_0.out")
+    return nix_build(f"{nixpkgs_expr()}.dotnetCorePackages.sdk_{major}_0.out")[0]
 
 
-def dotnet_env(home):
+def with_sdk_on_path(env, dotnet):
+    """The environment with the SDK first on PATH, as a build that runs
+    `dotnet` itself expects, and as the Nix build has it."""
+    env["PATH"] = f"{Path(dotnet).parent}{os.pathsep}{env.get('PATH', '')}"
+    return env
+
+
+def dotnet_env(home, dotnet):
     # .NET keeps its named mutexes under XDG_RUNTIME_DIR.
     (home / "run").mkdir(mode=0o700)
-    env = dict(os.environ)
+    env = with_sdk_on_path(dict(os.environ), dotnet)
     env.update(
         HOME=str(home),
         XDG_RUNTIME_DIR=str(home / "run"),
@@ -142,9 +181,11 @@ def dotnet_env(home):
         DOTNET_NOLOGO="1",
         DOTNET_SKIP_FIRST_TIME_EXPERIENCE="1",
         DOTNET_SKIP_WORKLOAD_INTEGRITY_CHECK="1",
+        # The SDK looks for workload updates on nuget.org in the background.
+        # It reads this variable as true only when it says "true".
         DOTNET_CLI_WORKLOAD_UPDATE_NOTIFY_DISABLE="true",
     )
-    return env
+    return reference_packs_only(env, home / "packs", dotnet)
 
 
 def run(dotnet, args, cwd, env, capture=False):
@@ -197,6 +238,8 @@ def describe(dotnet, root, project, env):
         "TargetFrameworks",
         "PackageId",
         "PackageVersion",
+        "SelfContained",
+        "RuntimeIdentifier",
     ]
     out = run(
         dotnet,
@@ -228,6 +271,9 @@ def describe(dotnet, root, project, env):
         "targetFrameworks": frameworks,
         "frameworkReferences": references,
     }
+    if kind == "exe":
+        record["selfContained"] = props["SelfContained"].lower() == "true"
+        record["runtimeIdentifier"] = props["RuntimeIdentifier"]
     if kind == "package":
         record["packageId"] = props["PackageId"]
         record["packageVersion"] = props["PackageVersion"]
@@ -239,12 +285,28 @@ def build_commands(project):
     Nix sandbox alike. nix/lib/build-dotnet-project.nix runs the same
     commands for each kind."""
     path = project["path"]
-    framework = ["-f", project["targetFrameworks"][0]]
     if project["kind"] == "exe":
-        return [["publish", path, *framework, *BUILD_PROPERTIES, "-o", "{out}"]]
+        framework = ["-f", project["targetFrameworks"][0]]
+        apphost = [] if project["selfContained"] else [NO_APPHOST]
+        return [["publish", path, *framework, *BUILD_PROPERTIES, *apphost, "-o", "{out}"]]
     if project["kind"] == "package":
-        return [["pack", path, *BUILD_PROPERTIES, "-o", "{out}"]]
-    return [["build", path, *BUILD_PROPERTIES]]
+        return [["pack", path, *BUILD_PROPERTIES, NO_APPHOST, "-o", "{out}"]]
+    return [["build", path, *BUILD_PROPERTIES, NO_APPHOST]]
+
+
+def artifacts_of(project, out):
+    """The files a project's Nix build produces, relative to the build's
+    output, as the lock run produced them: the packages a packable library
+    packs to, the command of an executable and the assembly of any other
+    library. A test project produces none."""
+    name, assembly = project["name"], project["assemblyName"]
+    if project["kind"] == "package":
+        return sorted(p.name for p in out.iterdir() if p.suffix in (".nupkg", ".snupkg"))
+    if project["kind"] == "exe":
+        return [f"bin/{assembly}"]
+    if project["kind"] == "library":
+        return [f"lib/{name}/{assembly}.dll"]
+    return []
 
 
 def service_index_base(source, cache):
@@ -261,31 +323,84 @@ def service_index_base(source, cache):
     return cache[source]
 
 
-def locked_packages(packages_dir):
-    """Every package of a NuGet package folder, as a download entry."""
+def local_package_file(feed, package_id, version):
+    """The .nupkg of a package in a folder feed, in a flat or a
+    hierarchical layout."""
+    name = f"{package_id}.{version}.nupkg"
+    for path in sorted(feed.rglob("*.nupkg")):
+        if path.name.lower() == name:
+            return path
+    return None
+
+
+def configured_sources(dotnet, build, env):
+    """The enabled package sources of the build's NuGet configuration."""
+    out = run(dotnet, ["nuget", "list", "source", "--format", "Short"], build, env, capture=True)
+    sources = []
+    for line in out.splitlines():
+        flag, _, source = line.strip().partition(" ")
+        if flag.startswith("E") and source:
+            sources.append(source.strip())
+    return sources
+
+
+def find_on_feeds(package_id, version, nupkg, sources, bases):
+    """The URL of a package on the first of the sources that serves the
+    same file, for a package NuGet installed without recording its feed.
+    `dotnet tool restore` installs packages that way."""
+    expected = sha512_sri(nupkg)
+    for source in sources:
+        if not source.startswith(("https://", "http://")):
+            continue
+        url = f"{service_index_base(source, bases)}{package_id}/{version}/{nupkg.name}"
+        digest = hashlib.sha512()
+        try:
+            with urllib.request.urlopen(url) as response:
+                for block in iter(lambda: response.read(1 << 20), b""):
+                    digest.update(block)
+        except OSError:
+            continue
+        if "sha512-" + base64.b64encode(digest.digest()).decode() == expected:
+            return url
+    fail(f"{package_id} {version} was installed without its feed, and no configured feed serves the same file")
+
+
+def installed_packages(packages_dir, build, sources):
+    """Every package of a NuGet package folder: the downloaded ones as
+    download entries { path, url, mirrors, hash }, and those from folder feeds inside
+    the build as { path, file, hash }, where `file` is the package's file
+    in the build. `path` is where the package lies in a NuGet package
+    folder."""
     bases = {}
     artifacts = []
+    local = []
     for metadata in sorted(packages_dir.glob("*/*/.nupkg.metadata")):
         version_dir = metadata.parent
         package_id = version_dir.parent.name
         version = version_dir.name
         nupkg = version_dir / f"{package_id}.{version}.nupkg"
+        path = f"{package_id}/{version}/{nupkg.name}"
         source = json.loads(metadata.read_text()).get("source")
-        if not source:
-            fail(f"{package_id} {version} has no source in {metadata}")
-        if not source.startswith(("https://", "http://")):
+        if not source or source.startswith(("https://", "http://")):
+            if source:
+                url = f"{service_index_base(source, bases)}{package_id}/{version}/{nupkg.name}"
+            else:
+                url = find_on_feeds(package_id, version, nupkg, sources, bases)
+            # A NuGet feed serves a package version at one URL for good, so
+            # the entry lists no mirrors.
+            artifacts.append({"path": path, "url": url, "mirrors": [], "hash": sha512_sri(nupkg)})
+            continue
+        feed = Path(source).resolve()
+        if not feed.is_relative_to(build.resolve()):
             fail(
-                f"{package_id} {version} comes from {source}; dotnet-purifier fetches only from http(s) feeds"
+                f"{package_id} {version} comes from the folder {source}, outside the build; "
+                "dotnet-purifier takes packages from folder feeds only inside the build's tree"
             )
-        base = service_index_base(source, bases)
-        artifacts.append(
-            {
-                "path": nupkg.name,
-                "url": f"{base}{package_id}/{version}/{nupkg.name}",
-                "hash": sri("sha512", nupkg),
-            }
-        )
-    return artifacts
+        file = local_package_file(feed, package_id, version)
+        if file is None:
+            fail(f"{package_id} {version} is not in its folder feed {source}")
+        local.append({"path": path, "file": str(file.relative_to(build.resolve())), "hash": sha512_sri(nupkg)})
+    return artifacts, local
 
 
 def lock(args):
@@ -302,8 +417,8 @@ def lock(args):
             return
 
     major = sdk_major(root)
-    sdk_root = sdk(major)
-    dotnet = f"{sdk_root}/bin/dotnet"
+    dotnet = f"{sdk(major)}/bin/dotnet"
+    tools = (root / ".config" / "dotnet-tools.json").is_file()
 
     with tempfile.TemporaryDirectory(prefix="dotnet-purifier-") as tmp:
         tmp = Path(tmp)
@@ -311,10 +426,13 @@ def lock(args):
         shutil.copytree(root, build, ignore=lambda _d, names: [n for n in names if n in SKIPPED_DIRS])
         home = tmp / "home"
         home.mkdir()
-        env = dotnet_env(home)
+        env = dotnet_env(home, dotnet)
 
         sdk_version = run(dotnet, ["--version"], build, env, capture=True).strip()
         info(f"locking with the .NET SDK {sdk_version}")
+        # A build may run the local tools, so they are installed first.
+        if tools:
+            run(dotnet, ["tool", "restore"], build, env)
         projects = [describe(dotnet, build, p, env) for p in project_files(dotnet, build, targets, env)]
         if not projects:
             fail("the build has no projects")
@@ -325,37 +443,32 @@ def lock(args):
             out = tmp / "out" / project["name"]
             for command in build_commands(project):
                 run(dotnet, [a.replace("{out}", str(out)) for a in command], build, env)
-        if (build / ".config" / "dotnet-tools.json").is_file():
-            run(dotnet, ["tool", "restore"], build, env)
+            project["artifacts"] = artifacts_of(project, out)
+            restore = [a for a in build_commands(project)[0][1:] if a not in ("-o", "{out}")]
+            if "-f" in restore:
+                i = restore.index("-f")
+                del restore[i : i + 2]
+            for host in BUILD_HOSTS:
+                run(dotnet, ["restore", *restore, f"-p:NETCoreSdkRuntimeIdentifier={host}"], build, env)
 
-        artifacts = locked_packages(home / "packages")
+        sources = configured_sources(dotnet, build, env)
+        artifacts, local = installed_packages(home / "packages", build, sources)
 
     data = {
         "version": FORMAT_VERSION,
         "sdk": {"version": sdk_version, "major": major},
         "targets": targets,
         "definitionHash": def_hash,
-        "tools": (root / ".config" / "dotnet-tools.json").is_file(),
+        "tools": tools,
         "projects": projects,
         "artifacts": artifacts,
+        "localPackages": local,
     }
     lock_path.write_text(json.dumps(data, indent=2) + "\n")
-    info(f"wrote {LOCK_NAME}: {len(projects)} projects, {len(artifacts)} packages")
+    info(f"wrote {LOCK_NAME}: {len(projects)} projects, {len(artifacts) + len(local)} packages")
 
 
-def realize(root):
-    """Builds the local feed of the lockfile's packages, with a GC root
-    under .dotnet-purifier/, and returns its store path."""
-    lib = os.environ["DOTNET_PURIFIER_NIX_LIB"]
-    lock_path = (root / LOCK_NAME).resolve()
-    state = root / STATE_DIR
-    state.mkdir(exist_ok=True)
-    expr = f"import {lib}/interactive.nix {{ pkgs = {nixpkgs_expr()}; lockFile = {lock_path}; }}"
-    return nix_build(expr, out_link=state / "feed")
-
-
-def run_dotnet(args):
-    root = build_root()
+def read_lock(root):
     lock_path = root / LOCK_NAME
     if not lock_path.is_file():
         fail(f"{root} has no {LOCK_NAME}; run `dotnet-purifier lock` first")
@@ -364,32 +477,105 @@ def run_dotnet(args):
         fail(f"{LOCK_NAME} has format {data.get('version')}; run `dotnet-purifier lock --force`")
     if data.get("definitionHash") != definition_hash(root, data["targets"]):
         info(f"the build definition changed since {LOCK_NAME} was made; run `dotnet-purifier lock`")
-    feed = realize(root)
-    sdk_root = sdk(data["sdk"]["major"])
+    return data
+
+
+def interactive_expr(root, attribute):
+    lib = os.environ["DOTNET_PURIFIER_NIX_LIB"]
+    return (
+        f"(import {lib}/interactive.nix {{ pkgs = {nixpkgs_expr()}; "
+        f"src = {root.resolve()}; }}).{attribute}"
+    )
+
+
+def user_package_folder(env):
+    if env.get("NUGET_PACKAGES"):
+        return Path(env["NUGET_PACKAGES"])
+    return Path(env.get("DOTNET_CLI_HOME") or Path.home()) / ".nuget" / "packages"
+
+
+def install(package_folder, target):
+    """Copies the packages of a Nix-built package folder that the target
+    folder lacks into it, the way NuGet installs them."""
+    for version_dir in sorted(Path(package_folder).glob("*/*")):
+        dest = target / version_dir.relative_to(package_folder)
+        if not (dest / ".nupkg.metadata").exists():
+            shutil.rmtree(dest, ignore_errors=True)
+            shutil.copytree(version_dir, dest, symlinks=False, copy_function=shutil.copyfile)
+
+
+def locked_config(path, package_folder):
+    """Writes a NuGet configuration whose only source is the locked
+    packages, for `dotnet tool restore`, which reads the sources of a
+    configuration rather than `RestoreSources`."""
+    path.write_text(
+        '<?xml version="1.0" encoding="utf-8"?>\n'
+        "<configuration>\n"
+        "  <packageSources>\n"
+        "    <clear />\n"
+        f'    <add key="dotnet-purifier" value="{package_folder}" />\n'
+        "  </packageSources>\n"
+        "  <packageSourceMapping>\n"
+        "    <clear />\n"
+        "  </packageSourceMapping>\n"
+        "</configuration>\n"
+    )
+    return path
+
+
+def run_dotnet(args):
+    root = build_root()
+    data = read_lock(root)
+    state = root / STATE_DIR
+    state.mkdir(exist_ok=True)
+    package_folder = nix_build(interactive_expr(root, "packageFolder"), out_link=state / "packages")[0]
     env = dict(os.environ)
+    install(package_folder, user_package_folder(env))
     # MSBuild reads environment variables as properties, so every restore
-    # that dotnet runs, explicit or implicit, reads only the feed.
-    env["RestoreSources"] = feed
+    # that dotnet runs, explicit or implicit, reads only the locked
+    # packages; NuGet takes a package folder as a feed.
+    env["RestoreSources"] = package_folder
     env["NuGetAudit"] = "false"
-    # Nix checked every package of the feed against the SHA-512 that the
-    # lock run recorded, after NuGet had verified the package's signature
-    # in that run. Verifying the signature again needs the network, for
-    # revocation checks.
+    # Nix checked every package against the SHA-512 that the lock run
+    # recorded, after NuGet had verified the package's signature in that
+    # run. Verifying the signature again needs the network, for revocation
+    # checks.
     env["DOTNET_NUGET_SIGNATURE_VERIFICATION"] = "false"
-    # The SDK looks for workload updates on nuget.org in the background. It
-    # reads this variable as true only when it says "true".
     env["DOTNET_CLI_WORKLOAD_UPDATE_NOTIFY_DISABLE"] = "true"
-    os.execve(f"{sdk_root}/bin/dotnet", ["dotnet", *args], env)
+    dotnet = f"{sdk(data['sdk']['major'])}/bin/dotnet"
+    reference_packs_only(env, state / "packs", dotnet)
+    # A self-contained build runs on the runtime NuGet installed, which
+    # loads ICU and OpenSSL from the system; the Nix build's wrapper gives
+    # it the same libraries.
+    libraries = nix_build(interactive_expr(root, "runtimeLibraries"), out_link=state / "runtime-libraries")[0]
+    env["LD_LIBRARY_PATH"] = os.pathsep.join(filter(None, [f"{libraries}/lib", env.get("LD_LIBRARY_PATH")]))
+    if args[:2] == ["tool", "restore"] and "--configfile" not in args:
+        args = [*args, "--configfile", str(locked_config(state / "nuget.config", package_folder))]
+    os.execve(dotnet, ["dotnet", *args], with_sdk_on_path(env, dotnet))
+
+
+def push(args):
+    root = build_root()
+    data = read_lock(root)
+    packages = [p["name"] for p in data["projects"] if p["kind"] == "package"]
+    if not packages:
+        fail("the build has no packable projects")
+    dotnet = f"{sdk(data['sdk']['major'])}/bin/dotnet"
+    outputs = nix_build(interactive_expr(root, "nupkgs"))
+    for out in outputs:
+        for nupkg in sorted(Path(out).glob("*.nupkg")):
+            info(f"pushing {nupkg.name}")
+            result = subprocess.run([dotnet, "nuget", "push", str(nupkg), *args], check=False)
+            if result.returncode != 0:
+                fail(f"pushing {nupkg.name} failed")
 
 
 def main():
-    if len(sys.argv) < 2 or sys.argv[1] not in ("lock", "dotnet"):
+    commands = {"lock": lock, "dotnet": run_dotnet, "push": push}
+    if len(sys.argv) < 2 or sys.argv[1] not in commands:
         print(__doc__, file=sys.stderr)
         sys.exit(2)
-    if sys.argv[1] == "lock":
-        lock(sys.argv[2:])
-    else:
-        run_dotnet(sys.argv[2:])
+    commands[sys.argv[1]](sys.argv[2:])
 
 
 if __name__ == "__main__":

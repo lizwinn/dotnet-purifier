@@ -1,0 +1,16 @@
+<!--
+  The source of tests/fixtures/sources/local-packages/Example.Local.1.0.0.nupkg,
+  the package that fixture restores from a folder feed inside its own tree.
+  `dotnet pack -c Release -o ../fixtures/sources/local-packages` remakes it.
+-->
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <PackageId>Example.Local</PackageId>
+    <Version>1.0.0</Version>
+    <Deterministic>true</Deterministic>
+  </PropertyGroup>
+
+</Project>

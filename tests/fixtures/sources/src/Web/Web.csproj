@@ -1,0 +1,11 @@
+<!--
+  An ASP.NET Core executable, which runs on the ASP.NET Core runtime.
+-->
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>web</AssemblyName>
+  </PropertyGroup>
+</Project>

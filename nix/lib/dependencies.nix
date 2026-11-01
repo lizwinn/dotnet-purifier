@@ -6,7 +6,8 @@
 # restore reads as a package source.
 #
 # This file knows nothing of NuGet: it takes file download entries of the
-# shape { path, url, hash } and nothing else.
+# shape { path, url, mirrors, hash } and nothing else. `mirrors` lists
+# fallback URLs that serve the same file.
 {
   lib,
   runCommand,
@@ -30,7 +31,8 @@ let
   fetch =
     d:
     fetchurl {
-      inherit (d) url hash;
+      inherit (d) hash;
+      urls = [ d.url ] ++ d.mirrors;
       name = storeName d.url;
     };
 in

@@ -1,0 +1,16 @@
+<!--
+  A project of an MSBuild SDK that comes from a NuGet package, whose build
+  runs a local tool of .config/dotnet-tools.json.
+-->
+<Project Sdk="Microsoft.Build.NoTargets/3.7.134">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <Target Name="CheckFormatting" AfterTargets="Build">
+    <Exec Command="dotnet tool run csharpier check ../Standalone ../Web" />
+  </Target>
+
+</Project>
