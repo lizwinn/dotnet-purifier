@@ -144,21 +144,18 @@ Supported, each locked by URL and hash:
 - **Folder feeds inside the build's tree**, recorded by file and hash.
 - **MSBuild SDK packages**, such as `Microsoft.Build.NoTargets`.
 - **Local tools** of `.config/dotnet-tools.json`, which a build may run.
-- **Runtime, host and targeting packs.** The SDK takes every runtime and
-  host pack from NuGet rather than from the packs a given SDK ships for the
-  machine it runs on, so one lock serves both x86_64-linux and
-  aarch64-linux.
-- **SDK workloads**, such as `wasm-tools`: their packs, for both machines,
-  from the workload manifests the SDK ships with. A Nix build installs them
-  offline and patches their native tools.
-- **The SDK's own folder feed** (`library-packs`): from a feed when a feed
-  serves the package, since nixpkgs builds the SDK per machine and the
-  copies differ, and otherwise from the SDK.
-- **NuGet's lock mode.** Where a project's `packages.lock.json` records a
-  package with the hash of its file, the lockfile reads the hash from it
-  rather than copying it. NuGet's content hash of a signed package leaves
-  the signature out, so for packages from nuget.org, which are all signed,
-  the lockfile keeps the hash of the file that Nix checks.
+- **Runtime, host and targeting packs.** The lock takes them from NuGet,
+  so one lock serves both x86_64-linux and aarch64-linux.
+- **SDK workloads**, such as `wasm-tools`. The lock records their packs for
+  both machines, and a Nix build installs them offline.
+- **The folder feed inside the SDK** (`library-packs`). The lock takes
+  these packages from a feed when a feed serves them, so both machines get
+  the same file.
+- **The lock mode of NuGet.** When a `packages.lock.json` records a package
+  with the hash of its file, the lockfile reads the hash from it. NuGet
+  hashes a signed package without its signature, so for signed packages the
+  lockfile keeps the hash of the file. Every package on nuget.org is
+  signed.
 
 Refused, with the reason:
 
@@ -179,27 +176,59 @@ differs. Workload tools run interactively on NixOS with `programs.nix-ld`.
 
 ## Examples
 
-CI locks and builds
-[FluentValidation](https://github.com/FluentValidation/FluentValidation) at
-commit `f95dbd5c8166a10e38f7a8bca4d752abd641a453`, from the lockfile in
-`tests/real-world/fluentvalidation`, which lives outside the project's
-source. The build makes its packages and its benchmark executable, and runs
-its test suite on net8.0, net9.0 and net10.0. Its lock run takes about four
-minutes.
+[FluentValidation](https://github.com/FluentValidation/FluentValidation) is
+a .NET validation library with a solution of packable libraries, a
+benchmark executable and a test project. To work on it with the locked
+packages, clone it, lock it and use the everyday loop:
 
-The fixtures in `tests/fixtures` show the other kinds of build: `multi` has
-an executable, a multi-targeted packable library, xunit tests and NuGet's
-lock mode; `sources` takes packages from every kind of source and has a
-self-contained executable, an ASP.NET Core executable and a build that runs
-a local tool; `workloads` is a WebAssembly executable relinked with
-Emscripten; and `update` has an old pin for `update` to move.
+```zsh
+git clone https://github.com/FluentValidation/FluentValidation
+cd FluentValidation
+nix run github:nix-purifiers/dotnet-purifier -- lock
+nix run github:nix-purifiers/dotnet-purifier -- dotnet test
+```
 
-`nix flake check` runs the unit tests of the lock tool, builds every fixture
-and FluentValidation, and runs the conformance checks of the purifier
-contract that the sandbox allows. CI runs the others on both machines:
-relocking reproduces each lockfile byte for byte, a rebuild gives the same
-output, the everyday loop works offline after a prefetch, and `update`
-leaves both lockfiles current.
+To package it with Nix without changing the project, keep the lockfile in a
+flake of your own. The flake takes FluentValidation as an input:
+
+```nix
+{
+  inputs.dotnet-purifier.url = "github:nix-purifiers/dotnet-purifier";
+  inputs.nixpkgs.follows = "dotnet-purifier/nixpkgs";
+  inputs.fluentvalidation = {
+    url = "github:FluentValidation/FluentValidation";
+    flake = false;
+  };
+
+  outputs = { nixpkgs, dotnet-purifier, fluentvalidation, ... }:
+    let
+      system = "x86_64-linux";
+      pkgs = nixpkgs.legacyPackages.${system};
+      build = dotnet-purifier.lib.dotnet-purifier.buildDotnetProject {
+        inherit pkgs;
+        src = fluentvalidation;
+        lockFile = ./dotnet-purifier.lock.json;
+      };
+    in
+    {
+      packages.${system} = build.packages // { default = build.release; };
+      checks.${system}.tests = build.tests;
+    };
+}
+```
+
+Write the lockfile from a clone at the commit the flake pins, which
+`nix flake metadata` shows for the `fluentvalidation` input:
+
+```zsh
+cd FluentValidation
+git checkout <revision of the fluentvalidation input>
+nix run github:nix-purifiers/dotnet-purifier -- lock --lockfile ../my-flake/dotnet-purifier.lock.json
+```
+
+`nix build` then gives the packages, `nix build '.#FluentValidation'` the
+package of the main library, and `nix flake check` runs the tests on every
+framework the test project targets.
 
 ## Credits
 
