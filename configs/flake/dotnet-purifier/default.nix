@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-{ ... }:
+{ closure-lib, ... }:
 {
   config,
   inputs,
@@ -8,33 +8,27 @@
 }:
 {
 
-  imports = [ inputs.flake-parts.flakeModules.partitions ];
+  imports = [
+    inputs.flake-parts.flakeModules.partitions
+    closure-lib.caisson.modules.flake."purifier/purifier-packages"
+  ];
 
   debug = false;
-  caisson = {
-    libOverlays.exported = libOverlays: {
-      inherit (libOverlays) default;
-    };
-
-    # The scope is the `default` entry of this flake's package overlay
-    # registry (pkg-overlays/): the package set applies it by default, and
-    # the flake exports it as `pkgOverlays` and as the plain
-    # `overlays.default`. The scope holds the builder, a function, which
-    # the packages export of the scope would reject, so the flake lists
-    # the derivations of the scope in `packages` itself.
-    nixpkgs = {
-      packages.export.enabled = false;
-    };
+  caisson.libOverlays.exported = libOverlays: {
+    inherit (libOverlays) default;
   };
+
+  # The flake publishes the derivations of the scope `pkgs.dotnet-purifier`,
+  # which the default package overlay (pkg-overlays/) adds. The scope also
+  # holds the builder, a function.
+  purifier.scope = "dotnet-purifier";
 
   # `nix run github:nix-purifiers/dotnet-purifier -- lock` locks the .NET
   # build in the current directory.
   perSystem =
     { pkgs, ... }:
     {
-      packages = lib.filterAttrs (_: lib.isDerivation) pkgs.dotnet-purifier // {
-        default = pkgs.dotnet-purifier.dotnet-purifier;
-      };
+      packages.default = pkgs.dotnet-purifier.dotnet-purifier;
     };
 
   partitionedAttrs.checks = "checks";
