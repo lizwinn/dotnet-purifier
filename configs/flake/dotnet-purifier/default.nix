@@ -21,7 +21,7 @@
     # the flake exports it as `pkgOverlays` and as the plain
     # `overlays.default`. The scope holds the builder, a function, which
     # the packages export of the scope would reject, so the flake lists
-    # the command in `packages` itself.
+    # the derivations of the scope in `packages` itself.
     nixpkgs = {
       packages.export.enabled = false;
     };
@@ -32,8 +32,7 @@
   perSystem =
     { pkgs, ... }:
     {
-      packages = {
-        dotnet-purifier = pkgs.dotnet-purifier.dotnet-purifier;
+      packages = lib.filterAttrs (_: lib.isDerivation) pkgs.dotnet-purifier // {
         default = pkgs.dotnet-purifier.dotnet-purifier;
       };
     };
