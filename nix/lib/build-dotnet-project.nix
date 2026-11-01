@@ -38,8 +38,12 @@
 # asks for what the lock run installed.
 {
   lib,
+  pkgs,
   stdenv,
   callPackage,
+  # The shared purifier library (`lib.purifier` of
+  # github:nix-purifiers/purifier).
+  purifier,
   dotnetCorePackages,
   makeWrapper,
   writeText,
@@ -121,9 +125,13 @@ let
     filter = if srcFilter != null then srcFilter else defaultSrcFilter;
   };
 
-  dependencies = callPackage ./dependencies.nix (
+  # The downloads laid out at their paths by the shared purifier library,
+  # each a link to its fixed-output fetch.
+  dependencies = purifier.tree (
     {
-      inherit (lock) downloads;
+      inherit pkgs;
+      name = "dotnet-purifier-feed";
+      entries = lock.downloads;
     }
     // lib.optionalAttrs (fetchurl != null) { inherit fetchurl; }
   );
@@ -390,8 +398,12 @@ let
   # `dotnet test` runs the tests once for each target framework of the
   # project, each on the runtime of its framework, so the SDK of a test
   # build carries the nixpkgs runtimes of the other frameworks too.
-  testSdk =
-    p:
+  testSdk = p: sdkWithRuntimesFor p.targetFrameworks;
+
+  # The locked SDK with the nixpkgs runtimes of the target frameworks that
+  # are not its own.
+  sdkWithRuntimesFor =
+    frameworks:
     let
       majorOf =
         tfm:
@@ -400,15 +412,15 @@ let
         in
         if m == null then null else builtins.head m;
       others = lib.unique (
-        lib.filter (major: major != null && major != toString lock.sdk.major) (
-          map majorOf p.targetFrameworks
-        )
+        lib.filter (major: major != null && major != toString lock.sdk.major) (map majorOf frameworks)
       );
     in
     if others == [ ] then
       sdk
     else
-      dotnetCorePackages.combinePackages ([ sdk ] ++ map (major: dotnetCorePackages."runtime_${major}_0") others);
+      dotnetCorePackages.combinePackages (
+        [ sdk ] ++ map (major: dotnetCorePackages."runtime_${major}_0") others
+      );
 
   mkTest =
     p:
@@ -450,6 +462,9 @@ let
 in
 {
   inherit dependencies packageFolder runtimeLibraries;
+  # The SDK with the runtime of every target framework of the build, which
+  # `dotnet-purifier dotnet` runs, so `dotnet test` runs every framework.
+  sdk = sdkWithRuntimesFor (lib.concatMap (p: p.targetFrameworks) lock.projects);
   packages = lib.mapAttrs (_: mkProject) (ofKind [
     "exe"
     "package"

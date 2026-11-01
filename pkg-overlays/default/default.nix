@@ -16,6 +16,8 @@ in
     final: prev:
     packages final prev
     // {
-      buildDotnetProject = final.callPackage ../../nix/lib/build-dotnet-project.nix { };
+      buildDotnetProject = final.callPackage ../../nix/lib/build-dotnet-project.nix {
+        inherit (closure-lib) purifier;
+      };
     };
 }

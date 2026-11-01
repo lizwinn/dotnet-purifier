@@ -18,6 +18,7 @@ writeShellApplication {
   name = "dotnet-purifier";
   text = ''
     export DOTNET_PURIFIER_NIX_LIB=${../../nix/lib}
+    export DOTNET_PURIFIER_FLAKE=${../..}
     export DOTNET_PURIFIER_NIXPKGS=${path}
     export DOTNET_PURIFIER_SYSTEM=${stdenv.hostPlatform.system}
     export DOTNET_PURIFIER_DEFAULT_SDK=${toString defaultSdk}

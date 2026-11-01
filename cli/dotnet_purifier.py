@@ -19,7 +19,9 @@
       arguments (a --source and an --api-key, for example).
 
 The package that installs this script sets the environment variables
-DOTNET_PURIFIER_NIX_LIB (the Nix library directory), DOTNET_PURIFIER_NIXPKGS
+DOTNET_PURIFIER_NIX_LIB (the Nix library directory), DOTNET_PURIFIER_FLAKE
+(the dotnet-purifier flake, whose `lib.purifier` the builds use),
+DOTNET_PURIFIER_NIXPKGS
 (the nixpkgs the SDKs come from), DOTNET_PURIFIER_SYSTEM (the Nix system)
 and DOTNET_PURIFIER_DEFAULT_SDK (the SDK major version used when the build
 has no global.json).
@@ -627,9 +629,11 @@ def read_lock(root):
 
 def interactive_expr(root, attribute):
     lib = os.environ["DOTNET_PURIFIER_NIX_LIB"]
+    flake = os.environ["DOTNET_PURIFIER_FLAKE"]
+    purifier = f'(builtins.getFlake "path:{flake}").lib.purifier'
     return (
         f"(import {lib}/interactive.nix {{ pkgs = {nixpkgs_expr()}; "
-        f"src = {root.resolve()}; }}).{attribute}"
+        f"purifier = {purifier}; src = {root.resolve()}; }}).{attribute}"
     )
 
 
@@ -670,7 +674,7 @@ def locked_config(path, package_folder):
 
 def run_dotnet(args):
     root = build_root()
-    data = read_lock(root)
+    read_lock(root)
     state = root / STATE_DIR
     state.mkdir(exist_ok=True)
     package_folder = nix_build(interactive_expr(root, "packageFolder"), out_link=state / "packages")[0]
@@ -687,7 +691,9 @@ def run_dotnet(args):
     # checks.
     env["DOTNET_NUGET_SIGNATURE_VERIFICATION"] = "false"
     env["DOTNET_CLI_WORKLOAD_UPDATE_NOTIFY_DISABLE"] = "true"
-    dotnet = f"{sdk(data['sdk']['major'])}/bin/dotnet"
+    # The locked SDK, with the runtime of every target framework, so that
+    # `dotnet test` runs the tests of each.
+    dotnet = f"{nix_build(interactive_expr(root, 'sdk'), out_link=state / 'sdk')[0]}/bin/dotnet"
     reference_packs_only(env, state / "packs", dotnet)
     # A self-contained build runs on the runtime NuGet installed, which
     # loads ICU and OpenSSL from the system; the Nix build's wrapper gives
