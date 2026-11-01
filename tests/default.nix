@@ -1,80 +1,121 @@
 # SPDX-License-Identifier: MIT
 #
 # The flake's checks. Every one builds in the sandbox; the only network
-# access is the fixed-output fetches of locked packages.
+# access is the fixed-output fetches of locked packages and pinned sources.
 {
   pkgs,
-  # The flake's default package overlay, which adds buildDotnetProject.
-  overlay,
+  # lib.dotnet-purifier.buildDotnetProject of the flake.
+  buildDotnetProject,
 }:
 let
   inherit (pkgs) lib;
 
-  # Every fixture builds the way a consumer's package does: through
-  # buildDotnetProject of a package set the overlay applies to.
-  withOverlay = pkgs.extend overlay;
-  inherit (withOverlay) buildDotnetProject;
+  # Every fixture builds the way a consumer's package does.
+  build = args: buildDotnetProject ({ inherit pkgs; } // args);
 
   # An executable that depends on a library of the same build, a packable
-  # library and an xunit test project, each with packages from nuget.org.
-  multi = buildDotnetProject { src = ./fixtures/multi; };
+  # library and an xunit test project, both multi-targeted, with packages
+  # from nuget.org.
+  multi = build { src = ./fixtures/multi; };
 
   # Packages from a second feed of nuget.config with package source
   # mapping, from a folder feed in the build's tree and from an MSBuild SDK
   # package; a build that runs a local tool; a self-contained executable
   # for linux-x64 with the runtime pack of that platform; and an ASP.NET
   # Core executable.
-  sources = buildDotnetProject { src = ./fixtures/sources; };
+  sources = build { src = ./fixtures/sources; };
 
   # A WebAssembly executable relinked with Emscripten, from the packs of
   # the wasm-tools workload.
-  workloads = buildDotnetProject { src = ./fixtures/workloads; };
+  workloads = build { src = ./fixtures/workloads; };
 
-  # Variants of the multi fixture's lockfile, each with one common mistake.
+  # FluentValidation at a pinned commit, a real-world project its authors
+  # do not lock with dotnet-purifier: its lockfile lives here, outside its
+  # source.
+  fluentvalidation = build {
+    src = pkgs.fetchFromGitHub {
+      owner = "FluentValidation";
+      repo = "FluentValidation";
+      rev = "f95dbd5c8166a10e38f7a8bca4d752abd641a453";
+      hash = "sha256-HNc7HxW4gLvOVVSY6yo3+NEOjNsIojemcj1dZ/KZhUM=";
+    };
+    lockFile = ./real-world/fluentvalidation/dotnet-purifier.lock.json;
+  };
+
+  # A lockfile changed by `changes`, with its content hash computed again,
+  # so that it fails only for the change.
   multiLock = lib.importJSON ./fixtures/multi/dotnet-purifier.lock.json;
   sourcesLock = lib.importJSON ./fixtures/sources/dotnet-purifier.lock.json;
-  lockWith =
-    name: lock: changes:
-    builtins.toFile "${name}.lock.json" (builtins.toJSON (lock // changes));
+  # A hash of some package, which no entry of another package has.
+  someHash = (lib.findFirst (a: a ? hash) null multiLock.artifacts).hash;
+  seal =
+    lock:
+    lock
+    // {
+      contentHash = builtins.convertHash {
+        hash = builtins.hashString "sha256" (builtins.toJSON (removeAttrs lock [ "contentHash" ]));
+        hashAlgo = "sha256";
+        toHashFormat = "sri";
+      };
+    };
+  lockFile = name: lock: builtins.toFile "${name}.lock.json" (builtins.toJSON lock);
   multiWith =
-    name: changes: args:
-    buildDotnetProject (
+    name: lock: args:
+    build (
       {
         src = ./fixtures/multi;
-        lockFile = lockWith name multiLock changes;
+        lockFile = lockFile name lock;
       }
       // args
     );
 
   # The build definition changed since the lock was made.
-  stale = multiWith "stale" {
-    definitionHash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
-  } { };
-  staleAllowed = multiWith "stale" {
-    definitionHash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
-  } { allowStaleLock = true; };
+  staleLock = seal (
+    multiLock // { definitionHash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="; }
+  );
+  stale = multiWith "stale" staleLock { };
+  staleAllowed = multiWith "stale" staleLock { allowStaleLock = true; };
+  # A package's hash was edited by hand, without a relock.
+  tampered = multiWith "tampered" (
+    multiLock
+    // {
+      artifacts = map (a: removeAttrs a [ "hashFrom" ] // { hash = someHash; }) multiLock.artifacts;
+    }
+  ) { };
   # A lockfile of another format, and one that lacks a field.
-  otherFormat = multiWith "other-format" { version = 2; } { };
-  malformed = buildDotnetProject {
-    src = ./fixtures/multi;
-    lockFile = builtins.toFile "malformed.lock.json" (
-      builtins.toJSON (removeAttrs multiLock [ "artifacts" ])
-    );
-  };
+  otherFormat = multiWith "other-format" (seal (multiLock // { version = 2; })) { };
+  malformed = multiWith "malformed" (seal (removeAttrs multiLock [ "artifacts" ])) { };
   # The lock lacks a package the build needs: Humanizer.Core, which the
   # Greeter library references.
-  missing = multiWith "missing" {
-    artifacts = lib.filter (a: !(lib.hasPrefix "humanizer.core/" a.path)) multiLock.artifacts;
-  } { };
+  missing = multiWith "missing" (seal (
+    multiLock
+    // {
+      artifacts = lib.filter (a: !(lib.hasPrefix "humanizer.core/" a.path)) multiLock.artifacts;
+    }
+  )) { };
   # The package of the folder feed in the build differs from the one the
   # lock records.
-  tampered = buildDotnetProject {
+  tamperedLocal = build {
     src = ./fixtures/sources;
-    lockFile = lockWith "tampered" sourcesLock {
-      localPackages = map (
-        p: p // { hash = (builtins.head multiLock.artifacts).hash; }
-      ) sourcesLock.localPackages;
+    lockFile = lockFile "tampered-local" (
+      seal (
+        sourcesLock
+        // {
+          localPackages = map (
+            p: removeAttrs p [ "hashFrom" ] // { hash = someHash; }
+          ) sourcesLock.localPackages;
+        }
+      )
+    );
+  };
+  # The multi fixture without its lockfile, built from the one kept beside
+  # it.
+  external = build {
+    src = lib.cleanSourceWith {
+      src = ./fixtures/multi;
+      filter = path: _type: baseNameOf path != "dotnet-purifier.lock.json";
     };
+    lockFile = ./fixtures/multi/dotnet-purifier.lock.json;
   };
 
   # True when evaluating the package names of a build fails, as a throw.
@@ -120,31 +161,36 @@ in
         touch "$out"
       '';
 
-  # A stale lock fails evaluation, unless the build allows it.
-  stale-lock-fails = expect "stale-lock-fails" (evaluationFails stale) "a stale lock evaluated";
+  # A lockfile older than the project fails evaluation, unless the build
+  # allows it.
+  conformance-stale = expect "conformance-stale" (evaluationFails stale) "a stale lock evaluated";
   stale-lock-allowed = staleAllowed.packages.App;
 
-  # A lockfile of another format or without a field fails evaluation.
-  other-format-fails =
-    expect "other-format-fails" (evaluationFails otherFormat)
-      "a lockfile of format 2 evaluated";
-  malformed-lock-fails =
-    expect "malformed-lock-fails" (evaluationFails malformed)
-      "a lockfile without artifacts evaluated";
+  # A lockfile edited by hand fails evaluation.
+  conformance-tampered =
+    expect "conformance-tampered" (evaluationFails tampered)
+      "a lockfile with an edited hash evaluated";
+  # A package of a folder feed that changed since the lock fails the build.
+  tampered-local-package-fails =
+    failsWith "tampered-local-package-fails" tamperedLocal.packageFolder
+      "the package changed since `dotnet-purifier lock` ran";
 
   # A package missing from the lock fails the build, which says what to run.
-  missing-package-fails =
-    failsWith "missing-package-fails" missing.packages.Greeter
+  conformance-missing =
+    failsWith "conformance-missing" missing.packages.Greeter
       "does not hold: run `dotnet-purifier lock`";
 
-  # A package of a folder feed that changed since the lock fails the build.
-  tampered-package-fails =
-    failsWith "tampered-package-fails" tampered.packageFolder
-      "the package changed since `dotnet-purifier lock` ran";
+  # A lockfile of another format or without a field fails evaluation.
+  conformance-malformed = expect "conformance-malformed" (
+    evaluationFails malformed && evaluationFails otherFormat
+  ) "a lockfile without artifacts, or of format 2, evaluated";
+
+  # A build whose source holds no lockfile, from one kept outside it.
+  conformance-external = external.packages.App;
 
   multi-app = multi.packages.App;
   multi-greeter = multi.packages.Greeter;
-  multi-tests = multi.tests."Greeter.Tests";
+  multi-tests = multi.tests;
 
   # The executable runs on the .NET runtime and reaches both its project
   # reference and its NuGet dependency.
@@ -152,16 +198,18 @@ in
     multi.packages.App.artifacts."bin/greet"
   } Ada" ''{"greeting":"Hello, Ada! You have 3 messages."}'';
 
-  # The packable library's package lies where the lock says.
-  multi-greeter-nupkg = pkgs.runCommand "multi-greeter-nupkg" { } ''
+  # The packable library's package lies where the lock says, and it is the
+  # release.
+  multi-release = pkgs.runCommand "multi-release" { } ''
     test -f ${multi.packages.Greeter.artifacts."Example.Greeter.1.0.0.nupkg"}
+    test -f ${multi.release}/Example.Greeter.1.0.0.nupkg
     touch "$out"
   '';
 
-  # `dotnet nuget push` takes the package Nix built, and a project that
+  # `dotnet nuget push` takes the release Nix built, and a project that
   # depends on it restores it from where it was pushed.
-  multi-greeter-publishes =
-    pkgs.runCommand "multi-greeter-publishes"
+  multi-release-publishes =
+    pkgs.runCommand "multi-release-publishes"
       {
         nativeBuildInputs = [ pkgs.dotnetCorePackages.sdk_10_0 ];
         dontConfigureNuget = true;
@@ -172,9 +220,7 @@ in
         export DOTNET_CLI_WORKLOAD_UPDATE_NOTIFY_DISABLE=true DOTNET_NUGET_SIGNATURE_VERIFICATION=false
         mkdir -p "$HOME" "$XDG_RUNTIME_DIR" feed consumer
         chmod 700 "$XDG_RUNTIME_DIR"
-        dotnet nuget push ${
-          multi.packages.Greeter.artifacts."Example.Greeter.1.0.0.nupkg"
-        } --source "$PWD/feed"
+        dotnet nuget push ${multi.release}/Example.Greeter.1.0.0.nupkg --source "$PWD/feed"
         cat > consumer/Consumer.csproj <<'EOF'
         <Project Sdk="Microsoft.NET.Sdk">
           <PropertyGroup>
@@ -200,6 +246,11 @@ in
 
   sources-web = sources.packages.Web;
 
+  # The ASP.NET Core executable runs on the ASP.NET Core runtime.
+  sources-web-runs = prints "sources-web-runs" "${
+    sources.packages.Web.artifacts."bin/web"
+  } --describe" "application: web";
+
   workloads-wasm = workloads.packages.Wasm;
 
   # The workload's Emscripten relinked the native runtime: the build
@@ -211,10 +262,12 @@ in
     touch "$out"
   '';
 
-  # The ASP.NET Core executable runs on the ASP.NET Core runtime.
-  sources-web-runs = prints "sources-web-runs" "${
-    sources.packages.Web.artifacts."bin/web"
-  } --describe" "application: web";
+  # The real-world project: its packages, its benchmark executable, and its
+  # tests on net8.0, net9.0 and net10.0.
+  realworld-fluentvalidation = fluentvalidation.release;
+  realworld-fluentvalidation-benchmarks =
+    fluentvalidation.packages."FluentValidation.Tests.Benchmarks";
+  realworld-fluentvalidation-tests = fluentvalidation.tests;
 }
 // lib.optionalAttrs (pkgs.stdenv.hostPlatform.system == "x86_64-linux") {
   sources-standalone = sources.packages.Standalone;

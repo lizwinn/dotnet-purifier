@@ -1,7 +1,9 @@
 <!--
   A self-contained executable for linux-x64, which publishes with the .NET
   runtime pack of that platform, and takes packages from a second feed and
-  from a folder feed in the build's tree.
+  from a folder feed in the build's tree. It uses NuGet's lock mode, and
+  dotnet-purifier.lock.json reads the hash of the unsigned package of the
+  folder feed from its packages.lock.json.
 -->
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
@@ -12,6 +14,7 @@
     <RuntimeIdentifier>linux-x64</RuntimeIdentifier>
     <SelfContained>true</SelfContained>
     <AssemblyName>standalone</AssemblyName>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Example.Local" Version="1.0.0" />

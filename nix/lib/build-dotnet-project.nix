@@ -5,22 +5,14 @@
 # its own: the lock names every NuGet package the build installs, with its
 # hash, and every project of the build with its kind.
 #
-# The file is a package for callPackage: the first argument set is what it
-# takes from the package set, and the result is the builder. The
-# dotnet-purifier overlay (`overlays.default`) adds it to the package set
-# as `buildDotnetProject`, so a package written for callPackage takes it
-# like any other dependency:
+# The flake publishes it as `lib.dotnet-purifier.buildDotnetProject`, which
+# takes `pkgs` with the arguments below and calls this file with
+# `pkgs.callPackage`:
 #
-#   { buildDotnetProject }: (buildDotnetProject { src = ./.; }).packages.App
+#   (lib.dotnet-purifier.buildDotnetProject { inherit pkgs; src = ./.; }).packages.App
 #
-# and `buildDotnetProject.override` replaces what it takes from the set.
 # The builder returns
 #
-#   dependencies     the downloaded packages, as fetched
-#   packageFolder    the locked packages installed in a NuGet package folder
-#   runtimeLibraries the libraries a self-contained .NET runtime loads at
-#                    run time, which the wrapper of a self-contained
-#                    executable puts on LD_LIBRARY_PATH
 #   packages.<name>  project <name>, named after its project file:
 #                    an executable project is published under lib/<name>,
 #                    with a command in bin/ named after its assembly; a
@@ -30,7 +22,17 @@
 #                    `artifacts."<file>"` is each file the lock names for
 #                    the project, a path into its output known without
 #                    building.
-#   tests.<name>     test project <name>, run with `dotnet test`
+#   tests            the test run of the build: `dotnet test` of every test
+#                    project, with each project's run as tests.projects.<name>
+#   release          the packages of the packable projects, which
+#                    `dotnet-purifier publish` uploads
+#   fetches          the download entries the build fetches, as the
+#                    purifier library takes them
+#   packageFolder    the locked packages installed in a NuGet package folder
+#   sdk              the locked SDK with the runtime of every target framework
+#   runtimeLibraries the libraries a self-contained .NET runtime loads at
+#                    run time, which the wrapper of a self-contained
+#                    executable puts on LD_LIBRARY_PATH
 #
 # Every build runs the command that `dotnet-purifier lock` ran for the
 # project's kind (`build_commands` in cli/dotnet_purifier.py), with the
@@ -58,7 +60,9 @@
   # The root of the .NET build.
   src,
   # The lockfile; the default is the one dotnet-purifier writes at the
-  # build root.
+  # build root. A lockfile kept outside `src` lets a packaging flake build
+  # a project whose author does not lock it, and it replaces any lockfile
+  # in `src`.
   lockFile ? src + "/dotnet-purifier.lock.json",
   # The .NET SDK. The default is the nixpkgs SDK of the major version the
   # lock was made with.
@@ -67,8 +71,9 @@
   nativeBuildInputs ? [ ],
   # Libraries the build links against.
   buildInputs ? [ ],
-  # Replaces the fetcher of the locked packages.
-  fetchurl ? null,
+  # Fetchers for the purifier library's fetchEntry and tree, such as a
+  # `fetchurl` that reads a company mirror or passes credentials.
+  fetchers ? { },
   # Filters the build root before it is copied into the store, as the
   # `filter` of builtins.path. The default leaves out build outputs,
   # version control, the purifier's state and Nix result links.
@@ -79,17 +84,16 @@
   allowStaleLock ? false,
 }:
 let
-  readLock = import ./lock.nix { inherit lib lockFile; };
-  current =
-    import ./definition.nix {
-      inherit lib src;
-      inherit (readLock) targets;
-    } == readLock.definitionHash;
-  lock =
-    if current || allowStaleLock then
-      readLock
-    else
-      throw "dotnet-purifier: ${toString lockFile} does not match the build: a project, solution, .props or .targets file, a NuGet configuration, global.json, the tool manifest or a package of a folder feed changed since `dotnet-purifier lock` ran. Run `dotnet-purifier lock` at the build root and commit the lockfile, or pass `allowStaleLock = true` to build anyway.";
+  # The lock in memory (lock.nix), which checkLock of the purifier library
+  # fails with its problems, each naming the command that fixes it.
+  lock = purifier.checkLock (
+    import ./lock.nix {
+      inherit lib lockFile src;
+      allowStale = allowStaleLock;
+    }
+  );
+  # The downloads this machine needs.
+  downloads = purifier.entriesFor stdenv.hostPlatform.system lock;
 
   lockedSdk = dotnetCorePackages."sdk_${toString lock.sdk.major}_0";
   sdk =
@@ -131,14 +135,15 @@ let
     {
       inherit pkgs;
       name = "dotnet-purifier-feed";
-      entries = lock.downloads;
+      entries = downloads;
     }
-    // lib.optionalAttrs (fetchurl != null) { inherit fetchurl; }
+    // fetchers
   );
 
   packageFolder = callPackage ./package-folder.nix {
     inherit dependencies;
-    inherit (lock) downloads localPackages sdkPackages;
+    inherit downloads;
+    inherit (lock) localPackages sdkPackages;
     inherit sdk;
     src = filteredSrc;
   };
@@ -375,8 +380,13 @@ let
         dotnet pack ${lib.escapeShellArg p.path} ${
           lib.escapeShellArgs (buildProperties ++ [ noApphost ])
         } -o "$out"
+        # dotnet pack stamps each entry of a package with the time it ran;
+        # the packages get a fixed time instead, so a rebuild gives the
+        # same files.
+        python3 ${./normalize-nupkg.py} "$out"/*.nupkg "$out"/*.snupkg
         runHook postInstall
       '';
+      nativeBuildInputs = [ python3 ];
       # The packages are what NuGet publishes, byte for byte.
       dontFixup = true;
     };
@@ -459,16 +469,32 @@ let
 
   byName = projects: lib.listToAttrs (map (p: lib.nameValuePair p.name p) projects);
   ofKind = kinds: byName (lib.filter (p: lib.elem p.kind kinds) lock.projects);
-in
-{
-  inherit dependencies packageFolder runtimeLibraries;
-  # The SDK with the runtime of every target framework of the build, which
-  # `dotnet-purifier dotnet` runs, so `dotnet test` runs every framework.
-  sdk = sdkWithRuntimesFor (lib.concatMap (p: p.targetFrameworks) lock.projects);
+
   packages = lib.mapAttrs (_: mkProject) (ofKind [
     "exe"
     "package"
     "library"
   ]);
-  tests = lib.mapAttrs (_: mkTest) (ofKind [ "test" ]);
+  testProjects = lib.mapAttrs (_: mkTest) (ofKind [ "test" ]);
+in
+{
+  inherit
+    packages
+    dependencies
+    packageFolder
+    runtimeLibraries
+    ;
+  # The SDK with the runtime of every target framework of the build, which
+  # `dotnet-purifier dotnet` runs, so `dotnet test` runs every framework.
+  sdk = sdkWithRuntimesFor (lib.concatMap (p: p.targetFrameworks) lock.projects);
+  tests =
+    (pkgs.linkFarm "dotnet-purifier-tests" (
+      lib.mapAttrsToList (name: path: { inherit name path; }) testProjects
+    )).overrideAttrs
+      { passthru.projects = testProjects; };
+  release = pkgs.symlinkJoin {
+    name = "dotnet-purifier-release";
+    paths = builtins.attrValues (lib.filterAttrs (_: p: p.kind == "package") packages);
+  };
+  fetches = lock.entries;
 }

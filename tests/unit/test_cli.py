@@ -67,10 +67,10 @@ class WorkloadPacks(unittest.TestCase):
         self.assertEqual(
             cli.workload_packs(self.dotnet, ["tools"]),
             [
-                ("any.real", "3.0.0"),
-                ("perhost.linux-arm64", "2.0.0"),
-                ("perhost.linux-x64", "2.0.0"),
-                ("plain", "1.0.0"),
+                ("any.real", "3.0.0", None),
+                ("perhost.linux-arm64", "2.0.0", ["aarch64-linux"]),
+                ("perhost.linux-x64", "2.0.0", ["x86_64-linux"]),
+                ("plain", "1.0.0", None),
             ],
         )
 

@@ -1,0 +1,372 @@
+{
+  "version": 1,
+  "sdk": {
+    "version": "10.0.403",
+    "major": 10
+  },
+  "targets": [
+    "FluentValidation.sln"
+  ],
+  "definitionHash": "sha256-Mvqc7vS4jl5cfO42sqgDVeMOKufpEv1OjCB/S4inqKc=",
+  "tools": false,
+  "workloads": [],
+  "projects": [
+    {
+      "name": "FluentValidation.DependencyInjectionExtensions",
+      "path": "src/FluentValidation.DependencyInjectionExtensions/FluentValidation.DependencyInjectionExtensions.csproj",
+      "kind": "package",
+      "assemblyName": "FluentValidation.DependencyInjectionExtensions",
+      "targetFrameworks": [
+        "net8.0"
+      ],
+      "frameworkReferences": [
+        "Microsoft.NETCore.App"
+      ],
+      "packageId": "FluentValidation.DependencyInjectionExtensions",
+      "packageVersion": "12.2.0",
+      "artifacts": [
+        "FluentValidation.DependencyInjectionExtensions.12.2.0.nupkg"
+      ]
+    },
+    {
+      "name": "FluentValidation.Tests.Benchmarks",
+      "path": "src/FluentValidation.Tests.Benchmarks/FluentValidation.Tests.Benchmarks.csproj",
+      "kind": "exe",
+      "assemblyName": "FluentValidation.Tests.Benchmarks",
+      "targetFrameworks": [
+        "net10.0"
+      ],
+      "frameworkReferences": [
+        "Microsoft.NETCore.App"
+      ],
+      "selfContained": false,
+      "runtimeIdentifier": "",
+      "artifacts": [
+        "bin/FluentValidation.Tests.Benchmarks"
+      ]
+    },
+    {
+      "name": "FluentValidation.Tests",
+      "path": "src/FluentValidation.Tests/FluentValidation.Tests.csproj",
+      "kind": "test",
+      "assemblyName": "FluentValidation.Tests",
+      "targetFrameworks": [
+        "net8.0",
+        "net9.0",
+        "net10.0"
+      ],
+      "frameworkReferences": [],
+      "artifacts": []
+    },
+    {
+      "name": "FluentValidation",
+      "path": "src/FluentValidation/FluentValidation.csproj",
+      "kind": "package",
+      "assemblyName": "FluentValidation",
+      "targetFrameworks": [
+        "net8.0"
+      ],
+      "frameworkReferences": [
+        "Microsoft.NETCore.App"
+      ],
+      "packageId": "FluentValidation",
+      "packageVersion": "12.2.0",
+      "artifacts": [
+        "FluentValidation.12.2.0.nupkg"
+      ]
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "benchmarkdotnet.annotations/0.12.1/benchmarkdotnet.annotations.0.12.1.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/benchmarkdotnet.annotations/0.12.1/benchmarkdotnet.annotations.0.12.1.nupkg",
+      "mirrors": [],
+      "hash": "sha512-p2sgez+0HFxToMlbkkn8URXJW1KMHzJkd8uI8dhqmo84bRdD1C6b68bCdvdBhQSq7l4qXzlskSn+6aPQZkWP1g=="
+    },
+    {
+      "path": "benchmarkdotnet/0.12.1/benchmarkdotnet.0.12.1.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/benchmarkdotnet/0.12.1/benchmarkdotnet.0.12.1.nupkg",
+      "mirrors": [],
+      "hash": "sha512-yOesOAr749W92MoLwhhzShb4RY6KxFUG8ovHzFfixtofADWM2aLjBjYA0htL4cSo5rSkx7nRJlYbfN18dHt5Bg=="
+    },
+    {
+      "path": "bogus/30.0.2/bogus.30.0.2.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/bogus/30.0.2/bogus.30.0.2.nupkg",
+      "mirrors": [],
+      "hash": "sha512-UHWz5ZtU3FWu6r/a/4lQAtfEW1OweK8jkKhaX0pNOx8J61gU7eqF+5i/0C2PPkfi/vSAJZVx8tYl60dN/zECig=="
+    },
+    {
+      "path": "commandlineparser/2.4.3/commandlineparser.2.4.3.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/commandlineparser/2.4.3/commandlineparser.2.4.3.nupkg",
+      "mirrors": [],
+      "hash": "sha512-3/WpSCsHNo4aTSaNW9SnmSqRNDgR4meKVJn5anKZn/hR/lGnDp8HbDMu1/w2GXOXi2rAhREU1cNwQMtEtlR1mg=="
+    },
+    {
+      "path": "fluentvalidation.dependencyinjectionextensions/12.0.0/fluentvalidation.dependencyinjectionextensions.12.0.0.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/fluentvalidation.dependencyinjectionextensions/12.0.0/fluentvalidation.dependencyinjectionextensions.12.0.0.nupkg",
+      "mirrors": [],
+      "hash": "sha512-60pisjpZLE9K5kBRU59DWP/3cqaGuDEojNcwZFsP9muknd63I+IGFzHOM3K+30JZ3KnmvyF+kO1P+Pd4Ebe3cg=="
+    },
+    {
+      "path": "fluentvalidation/12.0.0/fluentvalidation.12.0.0.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/fluentvalidation/12.0.0/fluentvalidation.12.0.0.nupkg",
+      "mirrors": [],
+      "hash": "sha512-8qZwkDgLO8Glx46Qa9p4XvmtNB9dUSBj9emGuNNghoFJmcIXZu+qRRTQlzlknn/zen/I/vvLQOcA4EFHhzV22Q=="
+    },
+    {
+      "path": "iced/1.4.0/iced.1.4.0.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/iced/1.4.0/iced.1.4.0.nupkg",
+      "mirrors": [],
+      "hash": "sha512-HGH4J1HNzSU4KGVpZbISWKweUCWgXkkNPdDMQHQBbUHo4wHiaC6WuuqE9aJdV86mso8ABFWO2pj8mpiI/XoniQ=="
+    },
+    {
+      "path": "microsoft.aspnetcore.app.ref/8.0.33/microsoft.aspnetcore.app.ref.8.0.33.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/microsoft.aspnetcore.app.ref/8.0.33/microsoft.aspnetcore.app.ref.8.0.33.nupkg",
+      "mirrors": [],
+      "hash": "sha512-l4Au1RN1mRlq9VZOyEVygQfuBgRwtlliXjQYapMlshSDSeJzfwmQbUG2JQpqJ+L02eTpwiwqGe9wygulIzRXHg=="
+    },
+    {
+      "path": "microsoft.aspnetcore.app.ref/9.0.22/microsoft.aspnetcore.app.ref.9.0.22.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/microsoft.aspnetcore.app.ref/9.0.22/microsoft.aspnetcore.app.ref.9.0.22.nupkg",
+      "mirrors": [],
+      "hash": "sha512-snWs0fwNH6lifDVwb+7eOygmNWfeKuCO0zkSQdX9+qRjO8ELSwJsf2VJx5O6EOfwEDjJEQQTswM2Xf7uoacQ/g=="
+    },
+    {
+      "path": "microsoft.codeanalysis.analyzers/2.6.1/microsoft.codeanalysis.analyzers.2.6.1.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/microsoft.codeanalysis.analyzers/2.6.1/microsoft.codeanalysis.analyzers.2.6.1.nupkg",
+      "mirrors": [],
+      "hash": "sha512-eiCP8ZbkBuisHUjLbBHblFdXUd5k5z2Wvb6+H2Lwc/wpqcH9IF0D21S87Ko+dOG1NwOGG1+zqwBHF/vx1n+PGQ=="
+    },
+    {
+      "path": "microsoft.codeanalysis.common/2.10.0/microsoft.codeanalysis.common.2.10.0.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/microsoft.codeanalysis.common/2.10.0/microsoft.codeanalysis.common.2.10.0.nupkg",
+      "mirrors": [],
+      "hash": "sha512-M+AwpCR1YPzTaqSQugn/v7PftRTMp1x6zhpDpfoIocNgruweJTQBlpwcNyQVGvRZHgnrd5P/xcUMhA9MoYS2Pg=="
+    },
+    {
+      "path": "microsoft.codeanalysis.csharp/2.10.0/microsoft.codeanalysis.csharp.2.10.0.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/microsoft.codeanalysis.csharp/2.10.0/microsoft.codeanalysis.csharp.2.10.0.nupkg",
+      "mirrors": [],
+      "hash": "sha512-Yzm1iiTT9T0lnFDR71YYqphq519ANqUOf0eKtJ4E+FHdLCjYvdFiQjfbGA3v4JB2za3/GOGdCHbIm19jlqgsBw=="
+    },
+    {
+      "path": "microsoft.codecoverage/16.0.1/microsoft.codecoverage.16.0.1.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/microsoft.codecoverage/16.0.1/microsoft.codecoverage.16.0.1.nupkg",
+      "mirrors": [],
+      "hash": "sha512-HEdO9Lyje8ehjMU985e6vZFETAv337R7wukZXng35hhVdTDoSs3OLC/h5guQWhdDyQ+cN9uKUTK3H1GUKTjrYA=="
+    },
+    {
+      "path": "microsoft.diagnostics.netcore.client/0.2.61701/microsoft.diagnostics.netcore.client.0.2.61701.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/microsoft.diagnostics.netcore.client/0.2.61701/microsoft.diagnostics.netcore.client.0.2.61701.nupkg",
+      "mirrors": [],
+      "hash": "sha512-wwdfw3ynSeqXhbN7sNTdmfo30NFUn7lPWtJ9j9EU8AkVhKyaCVqi6OsXOOmkcSWJHjkGJn4lzpLMH1YrcCjDUA=="
+    },
+    {
+      "path": "microsoft.diagnostics.runtime/1.1.57604/microsoft.diagnostics.runtime.1.1.57604.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/microsoft.diagnostics.runtime/1.1.57604/microsoft.diagnostics.runtime.1.1.57604.nupkg",
+      "mirrors": [],
+      "hash": "sha512-XA5q2Lit0KM7IHWip66yEJcX24UGuwQFdxuHh2Ag0muimZtNJZbwBL6ZoxpcTzsxIXb5mL4jtBAOKdyMFUCKmg=="
+    },
+    {
+      "path": "microsoft.diagnostics.tracing.traceevent/2.0.49/microsoft.diagnostics.tracing.traceevent.2.0.49.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/microsoft.diagnostics.tracing.traceevent/2.0.49/microsoft.diagnostics.tracing.traceevent.2.0.49.nupkg",
+      "mirrors": [],
+      "hash": "sha512-G1ZiHdscTku/pHPdUjHTq1jz2z6TQVUicaTFiKyAKKgdx+L1E4iYSA6YNrO6FYAq1ReMWo+173Jx1GHR3ABICw=="
+    },
+    {
+      "path": "microsoft.dotnet.platformabstractions/1.0.3/microsoft.dotnet.platformabstractions.1.0.3.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/microsoft.dotnet.platformabstractions/1.0.3/microsoft.dotnet.platformabstractions.1.0.3.nupkg",
+      "mirrors": [],
+      "hash": "sha512-+AheRvuidpztC3mr2PukG8bjKqtzwGKZznZTv2KVILnqvauFkTBrewgUvUs+FYSQe0uEyFJEAVsBC5G+tVRLAw=="
+    },
+    {
+      "path": "microsoft.dotnet.platformabstractions/1.1.0/microsoft.dotnet.platformabstractions.1.1.0.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/microsoft.dotnet.platformabstractions/1.1.0/microsoft.dotnet.platformabstractions.1.1.0.nupkg",
+      "mirrors": [],
+      "hash": "sha512-R3+6kAOJDKMnirwt320bCE00tZ3da7OK5Na/zrtf8pPCFQXTbrWYJBu/ie4Mv20rc0wPI9cXbn5hBpcwfj33Hw=="
+    },
+    {
+      "path": "microsoft.dotnet.platformabstractions/2.1.0/microsoft.dotnet.platformabstractions.2.1.0.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/microsoft.dotnet.platformabstractions/2.1.0/microsoft.dotnet.platformabstractions.2.1.0.nupkg",
+      "mirrors": [],
+      "hash": "sha512-ae/c3pX6vhCs17caUrVZrb8n9gDTzr6usnZKZEHla7uy7ZcjQLfm09gS7m+IneVtmGwXm5hcSDa5qwqwLaH2Ug=="
+    },
+    {
+      "path": "microsoft.extensions.dependencyinjection.abstractions/2.1.0/microsoft.extensions.dependencyinjection.abstractions.2.1.0.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/microsoft.extensions.dependencyinjection.abstractions/2.1.0/microsoft.extensions.dependencyinjection.abstractions.2.1.0.nupkg",
+      "mirrors": [],
+      "hash": "sha512-kDs/SngBdfZZRvbxu24sVqe22PSjCtLx7T1YOeJxs07Gnvb9rCNWwE/kjubRpS5N2AXu2ycxN/n6jeQF48vpkw=="
+    },
+    {
+      "path": "microsoft.extensions.dependencyinjection.abstractions/8.0.0/microsoft.extensions.dependencyinjection.abstractions.8.0.0.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/microsoft.extensions.dependencyinjection.abstractions/8.0.0/microsoft.extensions.dependencyinjection.abstractions.8.0.0.nupkg",
+      "mirrors": [],
+      "hash": "sha512-lLwF7Sl1UQlWXZzfyQEIfuH6CDAt2jkxBryaC9c4Tw3CtsLxI8G9U/zga6vb+oRdxtIqFjxLBkbFJR3MWurCgg=="
+    },
+    {
+      "path": "microsoft.extensions.dependencyinjection/8.0.0/microsoft.extensions.dependencyinjection.8.0.0.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/microsoft.extensions.dependencyinjection/8.0.0/microsoft.extensions.dependencyinjection.8.0.0.nupkg",
+      "mirrors": [],
+      "hash": "sha512-ljka9K4FQvSulsgAnJ/78wSsrfR2zaJiqOpz4zsXJSlUEEQYbFnWVjd7st5CyfWSXgYyqB9udRbypkbokW8W7A=="
+    },
+    {
+      "path": "microsoft.extensions.dependencymodel/1.0.3/microsoft.extensions.dependencymodel.1.0.3.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/microsoft.extensions.dependencymodel/1.0.3/microsoft.extensions.dependencymodel.1.0.3.nupkg",
+      "mirrors": [],
+      "hash": "sha512-oj8P60y2Atw9GBm+6y4o8cTkjkgUZC197TH4GmsAkSKT1/x+iPIy8M5udgAa0UofLvpS0aCB/FfgCqgE11m3gA=="
+    },
+    {
+      "path": "microsoft.extensions.dependencymodel/1.1.0/microsoft.extensions.dependencymodel.1.1.0.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/microsoft.extensions.dependencymodel/1.1.0/microsoft.extensions.dependencymodel.1.1.0.nupkg",
+      "mirrors": [],
+      "hash": "sha512-v8bAhLVV48jGB42ye/pXnNwtN+qUbD8yLe+J/rgjgLF+9/kKfDPE9DB1XKFFUUoI10Wtq1YpprvH7AGulFNogA=="
+    },
+    {
+      "path": "microsoft.net.test.sdk/16.0.1/microsoft.net.test.sdk.16.0.1.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/microsoft.net.test.sdk/16.0.1/microsoft.net.test.sdk.16.0.1.nupkg",
+      "mirrors": [],
+      "hash": "sha512-DaUwam5OX68Roubcr76OQ8Cb9Rkq5BOL3/NUtgFWfqJ+9ceiLqtvOClgobx1HTNhKZ62driQUikqv++vnSs4mA=="
+    },
+    {
+      "path": "microsoft.netcore.app.ref/8.0.33/microsoft.netcore.app.ref.8.0.33.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/microsoft.netcore.app.ref/8.0.33/microsoft.netcore.app.ref.8.0.33.nupkg",
+      "mirrors": [],
+      "hash": "sha512-sT+TrpGAW5ohk1RNlNS+c7QI33CMS/paqBA++RpBvQhBe5RK4qCeYGVQwIvSjb/v/Rh4E8Qv3T8iyacXeomHGA=="
+    },
+    {
+      "path": "microsoft.netcore.app.ref/9.0.22/microsoft.netcore.app.ref.9.0.22.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/microsoft.netcore.app.ref/9.0.22/microsoft.netcore.app.ref.9.0.22.nupkg",
+      "mirrors": [],
+      "hash": "sha512-BSfQ87Wahavupw7Rv6R/d1YL6gzNG7qru9fPw4Fqw6Nxa57izRpr3hhpDEAyHhHfi90QGuhnvmls+JWTctRrbw=="
+    },
+    {
+      "path": "microsoft.netcore.platforms/1.0.1/microsoft.netcore.platforms.1.0.1.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/microsoft.netcore.platforms/1.0.1/microsoft.netcore.platforms.1.0.1.nupkg",
+      "mirrors": [],
+      "hash": "sha512-XzYi2v2P6PNAbHp+5QanNjyZVbKIGa4fKwZ8OOrnq25iDrY0QpKblnyU/FEeR6K3VHq2K28ar+N9qiIkmcm7GQ=="
+    },
+    {
+      "path": "microsoft.netcore.platforms/2.0.0/microsoft.netcore.platforms.2.0.0.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/microsoft.netcore.platforms/2.0.0/microsoft.netcore.platforms.2.0.0.nupkg",
+      "mirrors": [],
+      "hash": "sha512-CCf4NjmDOoise7FAij2VPuHIgKKsu696vkTwhOkPVQfLsTmB2WLFfQ4yeO5Udtk8FD636UBMx6Y9eovzJKT76A=="
+    },
+    {
+      "path": "microsoft.testplatform.objectmodel/11.0.0/microsoft.testplatform.objectmodel.11.0.0.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/microsoft.testplatform.objectmodel/11.0.0/microsoft.testplatform.objectmodel.11.0.0.nupkg",
+      "mirrors": [],
+      "hash": "sha512-r2nN06he07DFrVVWOgFuAPr1roaW/dFfgriKtjzUzt/llj/xCmDid1Mtz+7WvM3XDuOooRqxinFfMN5Ysl6ECw=="
+    },
+    {
+      "path": "microsoft.testplatform.objectmodel/16.0.1/microsoft.testplatform.objectmodel.16.0.1.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/microsoft.testplatform.objectmodel/16.0.1/microsoft.testplatform.objectmodel.16.0.1.nupkg",
+      "mirrors": [],
+      "hash": "sha512-1ykjZOmcCtiACoxbn23FjpEvd/6ZtdG1acL65G/vShN05sjg6LcOV2yS8xuJIZZLIPSoRmzUPfypLR7+E4f0qw=="
+    },
+    {
+      "path": "microsoft.testplatform.testhost/16.0.1/microsoft.testplatform.testhost.16.0.1.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/microsoft.testplatform.testhost/16.0.1/microsoft.testplatform.testhost.16.0.1.nupkg",
+      "mirrors": [],
+      "hash": "sha512-KnnRkF7TljjTl8Mtv8kankP+b66HkiKlAa9JtViF8DYofKCq7UZTMAzP2uGdhNGxloRs/jQMcAaFw46Zx9LioA=="
+    },
+    {
+      "path": "n.sourcegenerators.uniontypes/0.28.0/n.sourcegenerators.uniontypes.0.28.0.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/n.sourcegenerators.uniontypes/0.28.0/n.sourcegenerators.uniontypes.0.28.0.nupkg",
+      "mirrors": [],
+      "hash": "sha512-DdFYI7oVI+PfKkNYzUvqBuEwH+mfo87sNANLy9iFVXfdXTuBAIXForAO6u5WOKs7pZ4eXSKwYctXSsmLdzZUUw=="
+    },
+    {
+      "path": "netstandard.library/1.6.0/netstandard.library.1.6.0.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/netstandard.library/1.6.0/netstandard.library.1.6.0.nupkg",
+      "mirrors": [],
+      "hash": "sha512-mDivTio2Id4k0RfH+ljl6PFw5Q6k4K4/49NAHfrb79brXsw7ZFMsg0D2NAcngi7tMF7zvCFinyu212xjnQVJJQ=="
+    },
+    {
+      "path": "newtonsoft.json/13.0.3/newtonsoft.json.13.0.3.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/newtonsoft.json/13.0.3/newtonsoft.json.13.0.3.nupkg",
+      "mirrors": [],
+      "hash": "sha512-mbJSvHfRxfX3tR/U6n1WU+mWHXswYc+SB/hkOpx8yZZe68hNZGfymJu0cjsaJEkVzCMqePiU6LdIyogqfIn7kg=="
+    },
+    {
+      "path": "perfolizer/0.2.1/perfolizer.0.2.1.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/perfolizer/0.2.1/perfolizer.0.2.1.nupkg",
+      "mirrors": [],
+      "hash": "sha512-nbUM3PE6hXN8J1oKo9xKmLl+fSPnrKHJsn3yjkVLDUWHMVvWL3GB3APgJXqD15x68ukHM+r9pwr+WpVsksIKmg=="
+    },
+    {
+      "path": "system.codedom/4.5.0/system.codedom.4.5.0.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/system.codedom/4.5.0/system.codedom.4.5.0.nupkg",
+      "mirrors": [],
+      "hash": "sha512-qonz9SplbbuApSnBWiWoK7Rfq9q1noTRm3LiWPxyLMWLtcTel2VSK6eWslNdiJODb8J4ghlqFfuHlwLtXCy7IQ=="
+    },
+    {
+      "path": "system.componentmodel.annotations/4.4.1/system.componentmodel.annotations.4.4.1.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/system.componentmodel.annotations/4.4.1/system.componentmodel.annotations.4.4.1.nupkg",
+      "mirrors": [],
+      "hash": "sha512-/8XSRz3cgSSPEdiV6UFhlfk6/FX9P10MAja4XPCyMCz7/0YTqjtCh4e0jjLYOCJL8jK7O/vhtUjYo1TOSuPngQ=="
+    },
+    {
+      "path": "system.management/4.5.0/system.management.4.5.0.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/system.management/4.5.0/system.management.4.5.0.nupkg",
+      "mirrors": [],
+      "hash": "sha512-jOvuXItvw9jq8s4Gm4k2GbjKur8g2xppvuI8wK42VUfREPEtX2x7t8WJMv+aZio62M45lvfHAZXh22HZMmZDEw=="
+    },
+    {
+      "path": "system.xml.xpath.xmldocument/4.0.1/system.xml.xpath.xmldocument.4.0.1.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/system.xml.xpath.xmldocument/4.0.1/system.xml.xpath.xmldocument.4.0.1.nupkg",
+      "mirrors": [],
+      "hash": "sha512-gQQaCNO5FYxD37SNQvE+yZUNfCt/Y+FgCnead3hu37RsUiwy2cxqRDWPv+Ee+6DlOeV47xaSYYZ6GQW4EhoEXQ=="
+    },
+    {
+      "path": "xunit.abstractions/2.0.1/xunit.abstractions.2.0.1.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/xunit.abstractions/2.0.1/xunit.abstractions.2.0.1.nupkg",
+      "mirrors": [],
+      "hash": "sha512-W2N3sBVk+ZXfIZYtHYsUGf6j7qsFJ2QlG/zQojFmDt0jB2YhnAgp/lmKVduedn5ZMcvKHOzMUDQ4uZ5BlNaS+Q=="
+    },
+    {
+      "path": "xunit.assert/2.2.0/xunit.assert.2.2.0.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/xunit.assert/2.2.0/xunit.assert.2.2.0.nupkg",
+      "mirrors": [],
+      "hash": "sha512-E2RSYmhaXeMaoQpxDcDcK6CTn+Ol1euj+sJa6AwiIDC06TvcsxqTv5l1rH/7hekjkGNRHL/bsvtH5MQ1502yCg=="
+    },
+    {
+      "path": "xunit.core/2.2.0/xunit.core.2.2.0.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/xunit.core/2.2.0/xunit.core.2.2.0.nupkg",
+      "mirrors": [],
+      "hash": "sha512-I/hawvpKY2Vnt3YjvMvtgKnQQ+jvbNCd9jwDo5Bl2l9SE2cRhYn631vkrJvy/O0hvf4nIL5wCv7LFIJwd2ZMMA=="
+    },
+    {
+      "path": "xunit.extensibility.core/2.2.0/xunit.extensibility.core.2.2.0.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/xunit.extensibility.core/2.2.0/xunit.extensibility.core.2.2.0.nupkg",
+      "mirrors": [],
+      "hash": "sha512-SBfjFa8RuppKqYRTnkF+Vg9n7uJ6Az5XUQM+Gp27sD2lkOTmO1GRAytxa9/O3oyoOckuYNmGSaHCSgdMTVI+8w=="
+    },
+    {
+      "path": "xunit.extensibility.execution/2.2.0/xunit.extensibility.execution.2.2.0.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/xunit.extensibility.execution/2.2.0/xunit.extensibility.execution.2.2.0.nupkg",
+      "mirrors": [],
+      "hash": "sha512-/CPFI5Nk6ksA+hWxsx3tmdmtuV2bX7M0wAbW7nbHxDo7cU9F0k9DxA0eWF30VUGKHjXbhR2eyN3/vdepIikiTw=="
+    },
+    {
+      "path": "xunit.runner.visualstudio/2.2.0/xunit.runner.visualstudio.2.2.0.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/xunit.runner.visualstudio/2.2.0/xunit.runner.visualstudio.2.2.0.nupkg",
+      "mirrors": [],
+      "hash": "sha512-At4vJFmny0IIAGgMXujTqnttD1EfXHcsKG05Dvw/47Zc33AlRD92fD0+cTSXmQWpwAz8sMPRnyBpviFz+Z5U/A=="
+    },
+    {
+      "path": "xunit/2.2.0/xunit.2.2.0.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/xunit/2.2.0/xunit.2.2.0.nupkg",
+      "mirrors": [],
+      "hash": "sha512-/mi2rNptefm9XUNfsGb4eIvrCFYAH/CA1xT+GUDxTfCz3xh5DiDftAB3BcSoIVreO032gUK2j7DFUZ0GRpVW5g=="
+    },
+    {
+      "path": "zomp.syncmethodgenerator/1.6.17/zomp.syncmethodgenerator.1.6.17.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/zomp.syncmethodgenerator/1.6.17/zomp.syncmethodgenerator.1.6.17.nupkg",
+      "mirrors": [],
+      "hash": "sha512-E91+ANj8WDoln2TE2gUmP1k3pbTMgWLcevXc5R/mxH+y7YmwBrEgEBEmJiGObDQ2Bct6/gTRtDtrVecyxbWwGg=="
+    }
+  ],
+  "localPackages": [],
+  "sdkPackages": [],
+  "contentHash": "sha256-B1fHUYe4ULzJIhRv/KXA2+qM1G51JND/ZMZUYRQVv+8="
+}

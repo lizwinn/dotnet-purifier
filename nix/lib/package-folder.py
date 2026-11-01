@@ -3,9 +3,10 @@
 
   python3 package-folder.py PACKAGES_JSON OUT
 
-PACKAGES_JSON lists the packages as { path, file, hash }: `path` is
-<id>/<version>/<id>.<version>.nupkg, with the id and version in lower
-case, `file` the .nupkg and `hash` its SRI SHA-512. For each package OUT
+PACKAGES_JSON lists the packages as { path, file, hash, nugetContentHash }:
+`path` is <id>/<version>/<id>.<version>.nupkg, with the id and version in
+lower case, `file` the .nupkg, `hash` its SRI SHA-512 and
+`nugetContentHash` the content hash NuGet records for it. For each package OUT
 gets the directory <id>/<version> with the .nupkg, its contents, the
 nuspec as <id>.nuspec, <file>.sha512 and .nupkg.metadata. NuGet takes a
 package with these files as installed, and the folder is also a feed that
@@ -49,7 +50,10 @@ def install(package, out):
     directory = out / path.parent
     directory.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(package["file"], out / path)
-    content_hash = package["hash"].removeprefix("sha512-")
+    # NuGet records its own content hash of the package, which for a signed
+    # package leaves the signature out, and a restore in lock mode checks
+    # it against packages.lock.json.
+    content_hash = package["nugetContentHash"].removeprefix("sha512-")
     with zipfile.ZipFile(out / path) as nupkg:
         for entry in nupkg.infolist():
             if entry.is_dir() or entry.filename.startswith(SKIPPED):

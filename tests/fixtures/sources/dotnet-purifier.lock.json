@@ -9,7 +9,7 @@
     "src/Standalone/Standalone.csproj",
     "src/Web/Web.csproj"
   ],
-  "definitionHash": "sha256-niY1JvLfbcb4B5DliVm0l3UN4IAFOt+XM9rmnZHD1v4=",
+  "definitionHash": "sha256-YkIUxLnGiZdl46jaqLP8TqEKAzmj9aJALT7wuNXPqWc=",
   "tools": true,
   "workloads": [],
   "projects": [
@@ -104,8 +104,9 @@
     {
       "path": "example.local/1.0.0/example.local.1.0.0.nupkg",
       "file": "local-packages/Example.Local.1.0.0.nupkg",
-      "hash": "sha512-Vzus5C6RBLWNmUUU0k5onIISayDBQB9wB8AftIyVUyWmNT/otf2ftaDk0P1sGai5PTEjtEA79nQ9oSuGCHI2dQ=="
+      "hashFrom": "src/Standalone/packages.lock.json"
     }
   ],
-  "sdkPackages": []
+  "sdkPackages": [],
+  "contentHash": "sha256-8AH9qX57wU8YAW7OVIl7utLCIHOe6/31WBqPCyX/haM="
 }

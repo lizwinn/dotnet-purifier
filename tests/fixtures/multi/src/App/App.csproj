@@ -7,6 +7,9 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>greet</AssemblyName>
     <IsPackable>false</IsPackable>
+    <!-- NuGet's lock mode: the restore writes packages.lock.json, whose
+         hashes dotnet-purifier.lock.json reads rather than copies. -->
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
   </PropertyGroup>
 
   <ItemGroup>

@@ -24,19 +24,18 @@
   sdk,
 }:
 let
+  # Each package with the hash of its file, and the content hash NuGet
+  # records for it: NuGet's own, from a packages.lock.json, where the
+  # entry carries one.
+  package = file: entry: {
+    inherit (entry) path hash;
+    inherit file;
+    nugetContentHash = entry.nugetContentHash or entry.hash;
+  };
   packages =
-    map (d: {
-      inherit (d) path hash;
-      file = "${dependencies}/${d.path}";
-    }) downloads
-    ++ map (p: {
-      inherit (p) path hash;
-      file = "${src}/${p.file}";
-    }) localPackages
-    ++ map (p: {
-      inherit (p) path hash;
-      file = "${sdk}/share/dotnet/library-packs/${p.file}";
-    }) sdkPackages;
+    map (d: package "${dependencies}/${d.path}" d) downloads
+    ++ map (p: package "${src}/${p.file}" p) localPackages
+    ++ map (p: package "${sdk}/share/dotnet/library-packs/${p.file}" p) sdkPackages;
 in
 runCommand "dotnet-purifier-packages"
   {

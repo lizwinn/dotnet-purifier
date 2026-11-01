@@ -9,7 +9,7 @@
     "src/Greeter/Greeter.csproj",
     "test/Greeter.Tests/Greeter.Tests.csproj"
   ],
-  "definitionHash": "sha256-xo7x55ZJAgecZ8S6VDvAX5MPwLhjJBcVpT7Y0J6ZzzQ=",
+  "definitionHash": "sha256-CCtOb+JahZjdCXpdy6pIsyEtF9VNy9BewOuEAnu7zEE=",
   "tools": false,
   "workloads": [],
   "projects": [
@@ -164,5 +164,6 @@
     }
   ],
   "localPackages": [],
-  "sdkPackages": []
+  "sdkPackages": [],
+  "contentHash": "sha256-CP+pqIcETbROwLMbmNpvrSxGh9CLbUHregKWsB6nd54="
 }
