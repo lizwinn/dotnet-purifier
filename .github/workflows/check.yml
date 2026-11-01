@@ -25,7 +25,9 @@ jobs:
 
   # Relocking a fixture reproduces its lockfile byte for byte. The
   # real-world project is locked from its pinned source, into the lockfile
-  # kept in this repository.
+  # kept in this repository. The multi fixture is relocked without the
+  # packages.lock.json of its App project, which the lock then writes as
+  # NuGet resolves it.
   conformance-relock:
     strategy:
       fail-fast: false
@@ -54,6 +56,9 @@ jobs:
             cd "$RUNNER_TEMP/project"
           else
             cd "tests/fixtures/${{ matrix.fixture }}"
+          fi
+          if [ "${{ matrix.fixture }}" = multi ]; then
+            rm src/App/packages.lock.json
           fi
           nix run "$GITHUB_WORKSPACE#default" -- lock --force --lockfile "$lockfile"
       - name: The lockfile is unchanged

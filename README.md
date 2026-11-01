@@ -5,7 +5,9 @@ their NuGet downloads. You keep using the `dotnet` command and your own
 project files. The lockfile, `dotnet-purifier.lock.json`, records every
 package a build installs, by URL and SHA-512, and every project with the
 files it produces. Nix reads it at evaluation time, so the repository needs
-no generated Nix files.
+no generated Nix files. The lockfile records every package even for a
+project in NuGet's lock mode, because a `packages.lock.json` records no
+download URL.
 
 ## Quickstart
 
@@ -106,7 +108,18 @@ nix run github:nix-purifiers/dotnet-purifier -- lock                 # after edi
 
 `update` runs `dotnet package update` on each project, refreshes any
 `packages.lock.json`, and relocks. `lock` keeps the versions the project
-files name. Every command takes `--lockfile <path>`.
+files name, and a project in NuGet's lock mode keeps the resolution its
+`packages.lock.json` records. Where that file is missing or no longer
+matches the project, `lock` writes it.
+
+Every command takes `--lockfile <path>` for a lockfile kept outside the
+build. The environment variable `DOTNET_PURIFIER_LOCKFILE` names it too,
+so a dev shell can set it once.
+
+dotnet-purifier is a command that runs the SDK, rather than an MSBuild
+plugin. A lock run controls the NuGet package folder, the SDK and the
+workloads of every restore and build it starts, and the development loop
+runs `dotnet` through the same command.
 
 To publish the packages Nix built:
 
@@ -121,8 +134,9 @@ nix run github:nix-purifiers/dotnet-purifier -- prefetch
 ```
 
 `prefetch` builds the locked packages, the SDK with every runtime the build
-targets and the libraries a self-contained runtime loads, with
-garbage-collector roots under `.dotnet-purifier/`. It installs the packages
+targets and the libraries a self-contained runtime loads. It keeps them
+with garbage-collector roots in the `.dotnet-purifier/` directory next to
+the lockfile. It installs the packages
 into your NuGet package folder, restores the local tools and the
 workloads, and restores every project. Afterwards `dotnet-purifier dotnet`
 uses those store paths without evaluating Nix, so the development loop works
@@ -135,8 +149,9 @@ After a prefetch, the packages are in your NuGet package folder and every
 project is restored, so a language server that reads a project through
 MSBuild (the Roslyn language server, csharp-ls or OmniSharp) works with no
 network. Run it with the locked SDK, which `prefetch` links at
-`.dotnet-purifier/sdk`: put `.dotnet-purifier/sdk/bin` first on its `PATH`
-and set `DOTNET_ROOT` to `.dotnet-purifier/sdk/share/dotnet`. Navigation into
+`.dotnet-purifier/sdk` next to the lockfile: put `.dotnet-purifier/sdk/bin`
+first on its `PATH` and set `DOTNET_ROOT` to
+`.dotnet-purifier/sdk/share/dotnet`. Navigation into
 a package's code decompiles it locally; source files that SourceLink
 downloads need the network.
 

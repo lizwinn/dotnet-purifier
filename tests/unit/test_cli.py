@@ -203,5 +203,45 @@ class DefinitionHash(unittest.TestCase):
             self.assertNotEqual(cli.definition_hash(root, ["src/A.csproj"]), before)
 
 
+class NuGetLockWriteBack(unittest.TestCase):
+    def test_writes_missing_and_changed_files_only(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            build, root = Path(tmp) / "build", Path(tmp) / "root"
+            for project in ("A", "B", "C"):
+                (build / project).mkdir(parents=True)
+                (root / project).mkdir(parents=True)
+                (build / project / "packages.lock.json").write_text(f"{project} resolved")
+            (root / "B" / "packages.lock.json").write_text("B resolved")
+            (root / "C" / "packages.lock.json").write_text("C stale")
+            self.assertEqual(cli.write_back_nuget_locks(build, root), ["A/packages.lock.json", "C/packages.lock.json"])
+            for project in ("A", "B", "C"):
+                self.assertEqual((root / project / "packages.lock.json").read_text(), f"{project} resolved")
+
+
+class LockfileLocation(unittest.TestCase):
+    def tearDown(self):
+        cli.LOCK_OVERRIDE = None
+
+    def test_environment_variable_and_flag(self):
+        with mock.patch.object(cli.sys, "argv", ["dotnet-purifier"]), mock.patch.dict(
+            os.environ, {"DOTNET_PURIFIER_LOCKFILE": "/elsewhere/env.lock.json"}
+        ):
+            with self.assertRaises(SystemExit):
+                cli.main()
+            self.assertEqual(cli.lock_path(Path("/build")), Path("/elsewhere/env.lock.json"))
+            self.assertEqual(cli.state_dir(Path("/build")), Path("/elsewhere/.dotnet-purifier"))
+        argv = ["dotnet-purifier", "--lockfile", "/flag/flag.lock.json"]
+        with mock.patch.object(cli.sys, "argv", argv), mock.patch.dict(
+            os.environ, {"DOTNET_PURIFIER_LOCKFILE": "/elsewhere/env.lock.json"}
+        ):
+            with self.assertRaises(SystemExit):
+                cli.main()
+            self.assertEqual(cli.lock_path(Path("/build")), Path("/flag/flag.lock.json"))
+
+    def test_default_is_the_build_root(self):
+        self.assertEqual(cli.lock_path(Path("/build")), Path("/build/dotnet-purifier.lock.json"))
+        self.assertEqual(cli.state_dir(Path("/build")), Path("/build/.dotnet-purifier"))
+
+
 if __name__ == "__main__":
     unittest.main()

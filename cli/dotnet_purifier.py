@@ -15,10 +15,11 @@
       keeps the versions the project files name.
 
   dotnet-purifier prefetch
-      Realizes what the everyday loop and an editor need, with garbage
-      collector roots under .dotnet-purifier/: the locked packages, which
-      it installs in the NuGet package folder, the SDK with the runtime of
-      every target framework, the local tools and the workloads. It then
+      Realizes what the development loop and an editor need, with garbage
+      collector roots in .dotnet-purifier/ beside the lockfile: the locked
+      packages, which it installs in the NuGet package folder, the SDK with
+      the runtime of every target framework, the local tools and the
+      workloads. It then
       restores every target, so an editor finds what a restore writes.
       Afterwards both work with the network cut off.
 
@@ -32,7 +33,8 @@
       changed since: every restore reads only the locked packages.
 
 Every command takes --lockfile PATH, a lockfile to use in place of the one
-at the build root.
+at the build root. Without --lockfile, the environment variable
+DOTNET_PURIFIER_LOCKFILE names it.
 
 The package that installs this script sets the environment variables
 DOTNET_PURIFIER_NIX_LIB (the Nix library directory), DOTNET_PURIFIER_FLAKE
@@ -66,6 +68,12 @@ LOCK_OVERRIDE = None
 
 def lock_path(root):
     return LOCK_OVERRIDE or root / LOCK_NAME
+
+
+def state_dir(root):
+    """The directory of prefetch's garbage-collector roots and record,
+    beside the lockfile."""
+    return lock_path(root).parent / STATE_DIR
 FORMAT_VERSION = 1
 STATE_DIR = ".dotnet-purifier"
 PROJECT_SUFFIXES = (".csproj", ".fsproj", ".vbproj")
@@ -654,6 +662,13 @@ def lock(args):
                     env,
                 )
 
+        # A project in NuGet's lock mode keeps the resolution its
+        # packages.lock.json records. Where that file is missing, or no
+        # longer matches the project, the build gets the one the restores
+        # wrote, and the build definition changes with it.
+        if write_back_nuget_locks(build, root):
+            def_hash = definition_hash(root, targets)
+
         sources = configured_sources(dotnet, build, env)
         bases = {}
         artifacts, local, sdk_packages = installed_packages(home / "packages", build, sources, dotnet)
@@ -681,6 +696,24 @@ def lock(args):
     data["contentHash"] = content_hash(data)
     path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
     info(f"wrote {LOCK_NAME}: {len(projects)} projects, {len(artifacts) + len(local) + len(sdk_packages)} packages")
+
+
+def write_back_nuget_locks(build, root):
+    """Copies each packages.lock.json in the lock run's copy of the build to
+    the same path in the build, where the build has none or another one,
+    and returns the paths it wrote, relative to the build root."""
+    written = []
+    for copy in walk(build):
+        if copy.name.lower() != "packages.lock.json":
+            continue
+        relative = copy.relative_to(build)
+        target = root / relative
+        if target.is_file() and target.read_bytes() == copy.read_bytes():
+            continue
+        shutil.copyfile(copy, target)
+        info(f"wrote {relative.as_posix()}")
+        written.append(relative.as_posix())
+    return written
 
 
 def nuget_lock_hashes(root):
@@ -812,8 +845,9 @@ def everyday_env(state, paths):
 
 
 def prefetch(args):
-    """Realizes what the everyday loop and an editor need, with garbage
-    collector roots under .dotnet-purifier/, and installs it, so that both
+    """Realizes what the development loop and an editor need, with garbage
+    collector roots in .dotnet-purifier/ beside the lockfile, and installs
+    it, so that both
     work with the network cut off."""
     if args:
         fail(f"prefetch takes no arguments, and was given {' '.join(args)}")
@@ -824,7 +858,7 @@ def prefetch(args):
 
 
 def prefetch_paths(root, data):
-    state = root / STATE_DIR
+    state = state_dir(root)
     state.mkdir(exist_ok=True)
     paths = {
         name: nix_build(interactive_expr(root, name), out_link=state / link)[0]
@@ -854,7 +888,7 @@ def prefetched(root, data):
     """The paths the last prefetch realized, when it prefetched this lock
     and they are still in the store, and None otherwise."""
     try:
-        record = json.loads((root / STATE_DIR / "prefetched.json").read_text())
+        record = json.loads((state_dir(root) / "prefetched.json").read_text())
     except (OSError, json.JSONDecodeError):
         return None
     paths = {k: v for k, v in record.items() if k != "contentHash"}
@@ -893,7 +927,7 @@ def run_dotnet(args):
     from a new one when the last prefetch was of another lock."""
     root = build_root()
     data = read_lock(root)
-    state = root / STATE_DIR
+    state = state_dir(root)
     paths = prefetched(root, data)
     if paths is None:
         info(f"prefetching for {lock_path(root).name}")
@@ -960,6 +994,8 @@ def main():
             fail("--lockfile takes a path")
         LOCK_OVERRIDE = Path(args[i + 1]).resolve()
         del args[i : i + 2]
+    elif os.environ.get("DOTNET_PURIFIER_LOCKFILE"):
+        LOCK_OVERRIDE = Path(os.environ["DOTNET_PURIFIER_LOCKFILE"]).resolve()
     commands = {"lock": lock, "update": update, "prefetch": prefetch, "publish": publish, "dotnet": run_dotnet}
     if not args or args[0] not in commands:
         print(__doc__, file=sys.stderr)
