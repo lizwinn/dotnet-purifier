@@ -63,6 +63,16 @@ jobs:
           nix run "$GITHUB_WORKSPACE#default" -- lock --force --lockfile "$lockfile"
       - name: The lockfile is unchanged
         run: git diff --exit-code -- tests
+      # With --tool-lockfile, a lock into a directory that does not exist
+      # yet starts from the packages.lock.json in the tree, writes it there,
+      # and leaves the tree and the lockfile as they are.
+      - name: Relock multi with NuGet's lockfiles kept outside the tree
+        if: matrix.fixture == 'multi'
+        working-directory: tests/fixtures/multi
+        run: |
+          nix run "$GITHUB_WORKSPACE#default" -- lock --force --tool-lockfile "$RUNNER_TEMP/nuget-locks"
+          cmp "$RUNNER_TEMP/nuget-locks/src/App/packages.lock.json" src/App/packages.lock.json
+          git diff --exit-code -- "$GITHUB_WORKSPACE/tests"
 
   # A rebuild of a fixture gives the same output.
   conformance-rebuild:

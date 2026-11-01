@@ -1,24 +1,13 @@
 # SPDX-License-Identifier: MIT
 #
-# The default package overlay. It adds the packages of pkgs/ under
-# `pkgs.dotnet-purifier` (`.dotnet-purifier`, the command), and the builder
-# `pkgs.buildDotnetProject` (nix/lib/build-dotnet-project.nix) beside them,
-# where nixpkgs keeps its own builders, so a package written for
-# callPackage takes it by name. The builder takes the shared purifier
-# library, `lib.purifier`, from this flake. A consumer that lists this
-# flake in `projects` holds the overlay as `dotnet-purifier/default`, which
-# its package sets apply by default.
+# The default package overlay. It adds one attribute to the package set,
+# the scope `pkgs.dotnet-purifier` of pkgs/default.nix, which holds the
+# command (`.dotnet-purifier`) and the builder (`.buildDotnetProject`). A
+# package written for callPackage takes the scope by name, and
+# `pkgs.dotnet-purifier.overrideScope` replaces what the scope shares. A
+# consumer that lists this flake in `projects` holds the overlay as
+# `dotnet-purifier/default`, which its package sets apply by default.
 { closure-lib, ... }:
-let
-  packages = closure-lib.caisson.nixpkgs.mkPackagesOverlay ../../pkgs "dotnet-purifier";
-in
 {
-  overlay =
-    final: prev:
-    packages final prev
-    // {
-      buildDotnetProject = final.callPackage ../../nix/lib/build-dotnet-project.nix {
-        inherit (closure-lib) purifier;
-      };
-    };
+  overlay = closure-lib.caisson.nixpkgs.mkPackagesOverlay ../../pkgs "dotnet-purifier";
 }

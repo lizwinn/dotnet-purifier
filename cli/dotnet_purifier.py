@@ -34,7 +34,11 @@
 
 Every command takes --lockfile PATH, a lockfile to use in place of the one
 at the build root. Without --lockfile, the environment variable
-DOTNET_PURIFIER_LOCKFILE names it.
+DOTNET_PURIFIER_LOCKFILE names it. --tool-lockfile DIR, or the environment
+variable DOTNET_PURIFIER_TOOL_LOCKFILE, names a directory whose
+packages.lock.json files, at the paths of their projects, take the place
+of those in the build: `lock` and `update` write NuGet's lockfiles there
+and leave the build's own as they are.
 
 The package that installs this script sets the environment variables
 DOTNET_PURIFIER_NIX_LIB (the Nix library directory), DOTNET_PURIFIER_FLAKE
@@ -68,6 +72,15 @@ LOCK_OVERRIDE = None
 
 def lock_path(root):
     return LOCK_OVERRIDE or root / LOCK_NAME
+
+
+# The directory that --tool-lockfile names, whose packages.lock.json files,
+# at the paths of their projects, replace those in the build.
+TOOL_LOCK_OVERRIDE = None
+
+
+def tool_lock_dir(root):
+    return TOOL_LOCK_OVERRIDE or root
 
 
 def state_dir(root):
@@ -163,16 +176,43 @@ def sha512_sri(path):
     return "sha512-" + base64.b64encode(digest.digest()).decode()
 
 
-def definition_files(root):
-    """The files below root that define what a restore installs, as paths
-    relative to root in sorted order. Symbolic links are left out."""
-    files = []
+def is_nuget_lock(path):
+    return path.name.lower() == "packages.lock.json"
+
+
+def nuget_locks(directory):
+    """The packages.lock.json files below a directory, by their path
+    relative to it. Symbolic links are left out."""
+    if not directory.is_dir():
+        return {}
+    return {
+        path.relative_to(directory).as_posix(): path
+        for path in walk(directory)
+        if is_nuget_lock(path) and not path.is_symlink()
+    }
+
+
+def definition_sources(root):
+    """The files that define what a restore installs, as their paths
+    relative to root, in sorted order, to the file each one is read from.
+    With a tool lockfile directory, its packages.lock.json files take the
+    place of those in the build. Symbolic links are left out."""
+    tool = tool_lock_dir(root)
+    sources = {}
     for path in walk(root):
-        if path.is_symlink():
+        if path.is_symlink() or (is_nuget_lock(path) and tool != root):
             continue
         if path.name.lower() in DEFINITION_NAMES or path.suffix.lower() in DEFINITION_SUFFIXES:
-            files.append(path.relative_to(root).as_posix())
-    return sorted(files)
+            sources[path.relative_to(root).as_posix()] = path
+    if tool != root:
+        sources.update(nuget_locks(tool))
+    return dict(sorted(sources.items()))
+
+
+def definition_files(root):
+    """The paths of the definition files relative to root, in sorted
+    order."""
+    return list(definition_sources(root))
 
 
 def definition_hash(root, targets):
@@ -182,8 +222,8 @@ def definition_hash(root, targets):
     nix/lib/definition.nix computes the same hash at evaluation time, so
     a Nix build knows when the lock is stale."""
     lines = [json.dumps(targets, separators=(",", ":"), ensure_ascii=False)]
-    for relative in definition_files(root):
-        lines.append(f"{relative}\t{hashlib.sha256((root / relative).read_bytes()).hexdigest()}")
+    for relative, path in definition_sources(root).items():
+        lines.append(f"{relative}\t{hashlib.sha256(path.read_bytes()).hexdigest()}")
     text = "\n".join(lines) + "\n"
     return "sha256-" + base64.b64encode(hashlib.sha256(text.encode()).digest()).decode()
 
@@ -597,7 +637,10 @@ def installed_packages(packages_dir, build, sources, dotnet):
     return artifacts, local, sdk_packages
 
 
-def lock(args):
+def lock(args, evaluate=False):
+    """Locks the build. With `evaluate`, as `update` asks, the first
+    restore of each target resolves again rather than keeping what a
+    packages.lock.json records."""
     force = "--force" in args
     targets = [a for a in args if a != "--force"]
     root = build_root()
@@ -618,6 +661,7 @@ def lock(args):
         tmp = Path(tmp)
         build = tmp / "build"
         shutil.copytree(root, build, ignore=lambda _d, names: [n for n in names if n in SKIPPED_DIRS])
+        use_tool_locks(build, root)
         home = tmp / "home"
         home.mkdir()
         env = dotnet_env(home, dotnet)
@@ -635,7 +679,13 @@ def lock(args):
         # as Microsoft.NET.Test.Sdk sets IsTestProject, so the projects are
         # restored before they are described.
         for target in targets:
-            run(dotnet, ["restore", target, *BUILD_PROPERTIES, NO_APPHOST, *LOCK_RUN_SWITCHES], build, env)
+            reevaluate = ["--force-evaluate"] if evaluate else []
+            run(
+                dotnet,
+                ["restore", target, *reevaluate, *BUILD_PROPERTIES, NO_APPHOST, *LOCK_RUN_SWITCHES],
+                build,
+                env,
+            )
         projects = [describe(dotnet, build, p, env) for p in project_files(dotnet, build, targets, env)]
         if not projects:
             fail("the build has no projects")
@@ -664,9 +714,10 @@ def lock(args):
 
         # A project in NuGet's lock mode keeps the resolution its
         # packages.lock.json records. Where that file is missing, or no
-        # longer matches the project, the build gets the one the restores
-        # wrote, and the build definition changes with it.
-        if write_back_nuget_locks(build, root):
+        # longer matches the project, the build, or the tool lockfile
+        # directory when one is given, gets the one the restores wrote, and
+        # the build definition changes with it.
+        if write_back_nuget_locks(build, tool_lock_dir(root)):
             def_hash = definition_hash(root, targets)
 
         sources = configured_sources(dotnet, build, env)
@@ -698,22 +749,35 @@ def lock(args):
     info(f"wrote {LOCK_NAME}: {len(projects)} projects, {len(artifacts) + len(local) + len(sdk_packages)} packages")
 
 
-def write_back_nuget_locks(build, root):
+def write_back_nuget_locks(build, target):
     """Copies each packages.lock.json in the lock run's copy of the build to
-    the same path in the build, where the build has none or another one,
-    and returns the paths it wrote, relative to the build root."""
+    the same path below `target`, the build or the tool lockfile directory,
+    where it has none or another one, and returns the paths it wrote,
+    relative to `target`."""
     written = []
-    for copy in walk(build):
-        if copy.name.lower() != "packages.lock.json":
+    for relative, copy in nuget_locks(build).items():
+        destination = target / relative
+        if destination.is_file() and destination.read_bytes() == copy.read_bytes():
             continue
-        relative = copy.relative_to(build)
-        target = root / relative
-        if target.is_file() and target.read_bytes() == copy.read_bytes():
-            continue
-        shutil.copyfile(copy, target)
-        info(f"wrote {relative.as_posix()}")
-        written.append(relative.as_posix())
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(copy, destination)
+        info(f"wrote {destination}")
+        written.append(relative)
     return written
+
+
+def use_tool_locks(build, root):
+    """Puts the packages.lock.json files of the tool lockfile directory in
+    place of those in the lock run's copy of the build. A directory that
+    does not exist yet leaves the build's own files as the start."""
+    tool = tool_lock_dir(root)
+    if tool == root or not tool.is_dir():
+        return
+    for path in nuget_locks(build).values():
+        path.unlink()
+    for relative, path in nuget_locks(tool).items():
+        (build / relative).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(path, build / relative)
 
 
 def nuget_lock_hashes(root):
@@ -721,10 +785,10 @@ def nuget_lock_hashes(root):
     lock mode), as (id, version) in lower case to the file, relative to
     root, and the SRI SHA-512 of the .nupkg that the file records."""
     hashes = {}
-    for path in definition_files(root):
-        if Path(path).name.lower() != "packages.lock.json":
+    for path, source in definition_sources(root).items():
+        if not is_nuget_lock(source):
             continue
-        data = json.loads((root / path).read_text())
+        data = json.loads(source.read_text())
         for packages in data.get("dependencies", {}).values():
             for package_id, package in packages.items():
                 if "contentHash" in package and "resolved" in package:
@@ -775,9 +839,11 @@ def interactive_expr(root, attribute):
     lib = os.environ["DOTNET_PURIFIER_NIX_LIB"]
     flake = os.environ["DOTNET_PURIFIER_FLAKE"]
     purifier = f'(builtins.getFlake "path:{flake}").lib.purifier'
+    tool = tool_lock_dir(root).resolve()
     return (
         f"(import {lib}/interactive.nix {{ pkgs = {nixpkgs_expr()}; "
-        f"purifier = {purifier}; src = {root.resolve()}; lockFile = {lock_path(root).resolve()}; }}).{attribute}"
+        f"purifier = {purifier}; src = {root.resolve()}; lockFile = {lock_path(root).resolve()}; "
+        f"packagesLock = {tool}; }}).{attribute}"
     )
 
 
@@ -959,14 +1025,17 @@ def update(args):
     dotnet = f"{sdk(sdk_major(root))}/bin/dotnet"
     env = with_sdk_on_path(dict(os.environ), dotnet)
     env["DOTNET_CLI_WORKLOAD_UPDATE_NOTIFY_DISABLE"] = "true"
+    # `dotnet package update` restores, which rewrites the build's
+    # packages.lock.json files. With a tool lockfile directory, the build
+    # keeps its own, and the lock run writes the new ones there.
+    kept = {} if tool_lock_dir(root) == root else {p: p.read_bytes() for p in nuget_locks(root).values()}
     for target in targets:
         run(dotnet, ["package", "update", *args, "--project", target], root, env)
+    for path, content in kept.items():
+        path.write_bytes(content)
     # A project in NuGet's lock mode records the new versions in its
     # packages.lock.json only when a restore evaluates it again.
-    if any(Path(f).name.lower() == "packages.lock.json" for f in definition_files(root)):
-        for target in targets:
-            run(dotnet, ["restore", target, "--force-evaluate", *LOCK_RUN_SWITCHES], root, env)
-    lock(["--force", *targets])
+    lock(["--force", *targets], evaluate=True)
 
 
 def publish(args):
@@ -985,17 +1054,26 @@ def publish(args):
             fail(f"publishing {nupkg.name} failed")
 
 
-def main():
-    global LOCK_OVERRIDE
-    args = sys.argv[1:]
-    if "--lockfile" in args:
-        i = args.index("--lockfile")
+def path_option(args, flag, variable):
+    """The path that `flag` gives, which it removes from args, or else the
+    path the environment variable gives, or None."""
+    if flag in args:
+        i = args.index(flag)
         if i + 1 >= len(args):
-            fail("--lockfile takes a path")
-        LOCK_OVERRIDE = Path(args[i + 1]).resolve()
+            fail(f"{flag} takes a path")
+        path = Path(args[i + 1]).resolve()
         del args[i : i + 2]
-    elif os.environ.get("DOTNET_PURIFIER_LOCKFILE"):
-        LOCK_OVERRIDE = Path(os.environ["DOTNET_PURIFIER_LOCKFILE"]).resolve()
+        return path
+    if os.environ.get(variable):
+        return Path(os.environ[variable]).resolve()
+    return None
+
+
+def main():
+    global LOCK_OVERRIDE, TOOL_LOCK_OVERRIDE
+    args = sys.argv[1:]
+    LOCK_OVERRIDE = path_option(args, "--lockfile", "DOTNET_PURIFIER_LOCKFILE")
+    TOOL_LOCK_OVERRIDE = path_option(args, "--tool-lockfile", "DOTNET_PURIFIER_TOOL_LOCKFILE")
     commands = {"lock": lock, "update": update, "prefetch": prefetch, "publish": publish, "dotnet": run_dotnet}
     if not args or args[0] not in commands:
         print(__doc__, file=sys.stderr)

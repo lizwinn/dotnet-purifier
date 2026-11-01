@@ -18,14 +18,18 @@ project files below it), lock the build:
 nix run github:nix-purifiers/dotnet-purifier -- lock
 ```
 
-Commit `dotnet-purifier.lock.json`. Then build with Nix. The flake's
-`overlays.default` adds `buildDotnetProject` to a package set, and a
-package written for `callPackage` takes it by name, like any other builder:
+Commit `dotnet-purifier.lock.json`, together with any `packages.lock.json`
+files of your projects. We recommend committing both lockfiles, and the
+builder and the commands look for them in the repository by default. Then
+build with Nix. The flake's `overlays.default` adds one attribute to a
+package set, the scope `dotnet-purifier`, which holds the builder
+`buildDotnetProject` and the command. A package written for `callPackage`
+takes the scope by name:
 
 ```nix
 # package.nix
-{ buildDotnetProject }:
-(buildDotnetProject { src = ./.; }).packages.App
+{ dotnet-purifier }:
+(dotnet-purifier.buildDotnetProject { src = ./.; }).packages.App
 ```
 
 ```nix
@@ -47,7 +51,7 @@ package written for `callPackage` takes it by name, like any other builder:
     in
     {
       packages.${system}.default = pkgs.app;
-      checks.${system}.tests = (pkgs.buildDotnetProject { src = ./.; }).tests;
+      checks.${system}.tests = (pkgs.dotnet-purifier.buildDotnetProject { src = ./.; }).tests;
     };
 }
 ```
@@ -69,18 +73,27 @@ its project file. The builder returns
 
 The builder takes `src` and these optional arguments:
 
-- `lockFile` is the lockfile. A lockfile kept outside `src` replaces any
-  in it, so a packaging flake can build a project whose author does not
-  lock it.
+- `lockFile` is the lockfile, `src + "/dotnet-purifier.lock.json"` by
+  default.
+- `packagesLock` is the directory of NuGet's `packages.lock.json` files,
+  `src` by default. Each file lies at the path of its project.
 - `fetchers` goes to the fetchers of the purifier library, for a company
   mirror or credentials.
 - `dotnet-sdk`, `nativeBuildInputs`, `buildInputs`, `srcFilter` and
   `allowStaleLock` are documented in `nix/lib/build-dotnet-project.nix`.
 
+A flake can instead keep the build external. It keeps the lockfile outside
+`src` and passes it as `lockFile`, and it can keep its own copies of the
+`packages.lock.json` files in a directory it passes as `packagesLock`. The
+build then uses them in place of the files in `src`. This builds a project
+whose author does not lock it, or whose committed `packages.lock.json` is
+stale or written by another version of the SDK.
+
 The builder takes what it needs from the package set, such as
 `dotnetCorePackages` and `stdenv`, so `buildDotnetProject.override`
-replaces any of it. `lib.dotnet-purifier.readLock { src, lockFile }` reads
-the lock in the shape every purifier shares.
+replaces any of it, and `dotnet-purifier.overrideScope` replaces what the
+whole scope shares. `lib.dotnet-purifier.readLock { src, lockFile,
+packagesLock }` reads the lock in the shape every purifier shares.
 
 ## Development loop
 
@@ -112,9 +125,15 @@ files name, and a project in NuGet's lock mode keeps the resolution its
 `packages.lock.json` records. Where that file is missing or no longer
 matches the project, `lock` writes it.
 
-Every command takes `--lockfile <path>` for a lockfile kept outside the
-build. The environment variable `DOTNET_PURIFIER_LOCKFILE` names it too,
-so a dev shell can set it once.
+For an external build, every command takes `--lockfile <path>`, and the
+environment variable `DOTNET_PURIFIER_LOCKFILE` names it too. The option
+`--tool-lockfile <directory>`, or the variable
+`DOTNET_PURIFIER_TOOL_LOCKFILE`, names the directory of the
+`packages.lock.json` files. With either, `lock` and `update` write NuGet's
+lockfiles there and leave the files in the tree as they are. A lock into a
+directory that does not exist yet starts from the files in the tree. The
+dev shell of the flake that calls the builder can set both variables to
+the paths it passes to the builder.
 
 dotnet-purifier is a command that runs the SDK, rather than an MSBuild
 plugin. A lock run controls the NuGet package folder, the SDK and the
@@ -220,13 +239,14 @@ nix run github:nix-purifiers/dotnet-purifier -- lock
 nix run github:nix-purifiers/dotnet-purifier -- dotnet test
 ```
 
-To package it with Nix without changing the project, keep the lockfile in a
-flake of your own, next to a package that passes it as `lockFile`:
+FluentValidation does not commit a dotnet-purifier lockfile, so packaging it
+with Nix is an external build: the lockfile lives in a flake of your own,
+next to a package that passes it as `lockFile`:
 
 ```nix
 # package.nix
-{ buildDotnetProject, src }:
-(buildDotnetProject {
+{ dotnet-purifier, src }:
+(dotnet-purifier.buildDotnetProject {
   inherit src;
   lockFile = ./dotnet-purifier.lock.json;
 }).packages.FluentValidation
@@ -261,7 +281,7 @@ as `src`:
     {
       packages.${system}.default = pkgs.fluentvalidation;
       checks.${system}.tests =
-        (pkgs.buildDotnetProject {
+        (pkgs.dotnet-purifier.buildDotnetProject {
           src = fluentvalidation;
           lockFile = ./dotnet-purifier.lock.json;
         }).tests;

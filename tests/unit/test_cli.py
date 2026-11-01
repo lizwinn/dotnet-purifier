@@ -218,6 +218,45 @@ class NuGetLockWriteBack(unittest.TestCase):
                 self.assertEqual((root / project / "packages.lock.json").read_text(), f"{project} resolved")
 
 
+class ToolLockfileDirectory(unittest.TestCase):
+    def tearDown(self):
+        cli.TOOL_LOCK_OVERRIDE = None
+
+    def tree(self, tmp):
+        root, tool = Path(tmp) / "root", Path(tmp) / "tool"
+        (root / "A").mkdir(parents=True)
+        (root / "A" / "A.csproj").write_text("<Project />")
+        (root / "A" / "packages.lock.json").write_text("tree")
+        return root, tool
+
+    def test_its_files_replace_those_of_the_build(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root, tool = self.tree(tmp)
+            (tool / "A").mkdir(parents=True)
+            (tool / "A" / "packages.lock.json").write_text("outside")
+            own = cli.definition_hash(root, ["A/A.csproj"])
+            cli.TOOL_LOCK_OVERRIDE = tool
+            sources = cli.definition_sources(root)
+            self.assertEqual(sources["A/packages.lock.json"], tool / "A" / "packages.lock.json")
+            self.assertEqual(sources["A/A.csproj"], root / "A" / "A.csproj")
+            self.assertNotEqual(cli.definition_hash(root, ["A/A.csproj"]), own)
+
+    def test_lock_run_starts_from_the_build_until_the_directory_exists(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root, tool = self.tree(tmp)
+            build = Path(tmp) / "build"
+            (build / "A").mkdir(parents=True)
+            (build / "A" / "packages.lock.json").write_text("tree")
+            cli.TOOL_LOCK_OVERRIDE = tool
+            cli.use_tool_locks(build, root)
+            self.assertEqual((build / "A" / "packages.lock.json").read_text(), "tree")
+            self.assertEqual(cli.write_back_nuget_locks(build, tool), ["A/packages.lock.json"])
+            self.assertEqual((root / "A" / "packages.lock.json").read_text(), "tree")
+            (tool / "A" / "packages.lock.json").write_text("outside")
+            cli.use_tool_locks(build, root)
+            self.assertEqual((build / "A" / "packages.lock.json").read_text(), "outside")
+
+
 class LockfileLocation(unittest.TestCase):
     def tearDown(self):
         cli.LOCK_OVERRIDE = None

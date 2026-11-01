@@ -16,21 +16,26 @@
       inherit (libOverlays) default;
     };
 
-    # The packages are the `default` entry of this flake's package overlay
+    # The scope is the `default` entry of this flake's package overlay
     # registry (pkg-overlays/): the package set applies it by default, and
     # the flake exports it as `pkgOverlays` and as the plain
-    # `overlays.default`.
+    # `overlays.default`. The scope holds the builder, a function, which
+    # the packages export of the scope would reject, so the flake lists
+    # the command in `packages` itself.
     nixpkgs = {
-      packages.export.enabled = true;
+      packages.export.enabled = false;
     };
   };
 
   # `nix run github:nix-purifiers/dotnet-purifier -- lock` locks the .NET
   # build in the current directory.
   perSystem =
-    { config, ... }:
+    { pkgs, ... }:
     {
-      packages.default = config.packages.dotnet-purifier;
+      packages = {
+        dotnet-purifier = pkgs.dotnet-purifier.dotnet-purifier;
+        default = pkgs.dotnet-purifier.dotnet-purifier;
+      };
     };
 
   partitionedAttrs.checks = "checks";

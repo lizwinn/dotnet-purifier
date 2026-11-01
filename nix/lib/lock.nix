@@ -62,6 +62,10 @@
   src,
   # The lockfile.
   lockFile ? src + "/dotnet-purifier.lock.json",
+  # The directory of NuGet's packages.lock.json files, at the paths of
+  # their projects. Another directory than `src` takes the place of the
+  # files in `src`.
+  packagesLock ? src,
   # Leaves out the problem of a stale lock.
   allowStale ? false,
 }:
@@ -101,7 +105,7 @@ let
       parts = lib.splitString "/" path;
       id = builtins.elemAt parts 0;
       version = builtins.elemAt parts 1;
-      nugetLock = lib.importJSON "${src}/${file}";
+      nugetLock = lib.importJSON "${packagesLock}/${file}";
       matches = lib.concatMap (
         packages:
         lib.mapAttrsToList (_: package: package.contentHash) (
@@ -122,7 +126,7 @@ let
 
   # The packages.lock.json files of the build: NuGet's lock mode writes one
   # beside each project that uses it.
-  nugetLocks = lib.filter (file: builtins.pathExists "${src}/${file}") (
+  nugetLocks = lib.filter (file: builtins.pathExists "${packagesLock}/${file}") (
     map (p: (if dirOf p.path == "." then "" else "${dirOf p.path}/") + "packages.lock.json") (
       lock.projects or [ ]
     )
@@ -150,7 +154,7 @@ let
 
   stale =
     import ./definition.nix {
-      inherit lib src;
+      inherit lib src packagesLock;
       inherit (lock) targets;
     } != lock.definitionHash;
 

@@ -14,10 +14,13 @@
   purifier,
   src,
   lockFile,
+  # The directory of the packages.lock.json files, the build root or the
+  # one --tool-lockfile names.
+  packagesLock,
 }:
 let
   build = pkgs.callPackage ./build-dotnet-project.nix { inherit purifier; } {
-    inherit src lockFile;
+    inherit src lockFile packagesLock;
   };
 in
 {

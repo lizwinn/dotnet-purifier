@@ -7,11 +7,12 @@
 #
 # The file is a package for callPackage: the first argument set is what it
 # takes from the package set, and the result is the builder. The
-# dotnet-purifier overlay (`overlays.default`) adds it to the package set
-# as `buildDotnetProject`, so a package written for callPackage takes it
-# like any other dependency:
+# dotnet-purifier overlay (`overlays.default`) adds it to the scope
+# `pkgs.dotnet-purifier` as `buildDotnetProject`, so a package written for
+# callPackage takes the scope like any other dependency:
 #
-#   { buildDotnetProject }: (buildDotnetProject { src = ./.; }).packages.App
+#   { dotnet-purifier }:
+#   (dotnet-purifier.buildDotnetProject { src = ./.; }).packages.App
 #
 # and `buildDotnetProject.override` replaces what it takes from the set.
 # The builder returns
@@ -47,6 +48,8 @@
   callPackage,
   fetchurl,
   runCommand,
+  unzip,
+  zstd,
   linkFarm,
   symlinkJoin,
   # The shared purifier library (`lib.purifier` of
@@ -70,6 +73,10 @@
   # a project whose author does not lock it, and it replaces any lockfile
   # in `src`.
   lockFile ? src + "/dotnet-purifier.lock.json",
+  # The directory of NuGet's packages.lock.json files, at the paths of
+  # their projects. A directory kept outside `src` lets a packaging flake
+  # keep its own copies, which the build uses in place of those in `src`.
+  packagesLock ? src,
   # The .NET SDK. The default is the nixpkgs SDK of the major version the
   # lock was made with.
   dotnet-sdk ? null,
@@ -94,7 +101,12 @@ let
   # fails with its problems, each naming the command that fixes it.
   lock = purifier.checkLock (
     import ./lock.nix {
-      inherit lib lockFile src;
+      inherit
+        lib
+        lockFile
+        src
+        packagesLock
+        ;
       allowStale = allowStaleLock;
     }
   );
@@ -135,20 +147,31 @@ let
     filter = if srcFilter != null then srcFilter else defaultSrcFilter;
   };
 
+  # The build's source, with the packages.lock.json files of
+  # `packagesLock` in place of its own when that is another directory.
+  buildSrc =
+    if packagesLock == src then
+      filteredSrc
+    else
+      runCommand "dotnet-source" { } ''
+        cp -r --no-preserve=mode ${filteredSrc} "$out"
+        find "$out" -iname packages.lock.json -delete
+        cd ${packagesLock}
+        find . -iname packages.lock.json -exec install -D -m 644 {} "$out/{}" \;
+      '';
+
   # The downloads laid out at their paths by the shared purifier library,
-  # each a link to its fixed-output fetch. Every entry of the lock is a
-  # file entry, and these are the packages the library fetches and lays
-  # out file entries with.
+  # each a link to its fixed-output fetch.
   dependencies = purifier.tree (
     {
-      pkgs = {
-        inherit
-          fetchurl
-          runCommand
-          writeText
-          python3
-          ;
-      };
+      inherit
+        fetchurl
+        runCommand
+        unzip
+        zstd
+        python3
+        writeText
+        ;
       name = "dotnet-purifier-feed";
       entries = downloads;
     }
@@ -291,7 +314,7 @@ let
       {
         pname = p.name;
         version = p.packageVersion or "0";
-        src = filteredSrc;
+        src = buildSrc;
         # The SDK of the build: the locked one, or for a test project, the
         # locked one with the runtimes the project's tests run on.
         dotnetSdk = attrs.dotnetSdk or sdk;

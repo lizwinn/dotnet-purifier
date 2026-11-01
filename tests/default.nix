@@ -4,15 +4,16 @@
 # access is the fixed-output fetches of locked packages and pinned sources.
 {
   pkgs,
-  # The flake's default package overlay, which adds buildDotnetProject.
+  # The flake's default package overlay, which adds the dotnet-purifier
+  # scope.
   overlay,
 }:
 let
   inherit (pkgs) lib;
 
   # Every fixture builds the way a consumer's package does: through
-  # buildDotnetProject of a package set the overlay applies to.
-  build = (pkgs.extend overlay).buildDotnetProject;
+  # the builder of the scope in a package set the overlay applies to.
+  build = (pkgs.extend overlay).dotnet-purifier.buildDotnetProject;
 
   # An executable that depends on a library of the same build, a packable
   # library and an xunit test project, both multi-targeted, with packages
@@ -119,6 +120,25 @@ let
     lockFile = ./fixtures/multi/dotnet-purifier.lock.json;
   };
 
+  # The same, with NuGet's lockfile of the App project also kept outside
+  # `src`, in a directory that holds it at the project's path.
+  externalPackagesLock = build {
+    src = lib.cleanSourceWith {
+      src = ./fixtures/multi;
+      filter =
+        path: _type:
+        !(lib.elem (baseNameOf path) [
+          "dotnet-purifier.lock.json"
+          "packages.lock.json"
+        ]);
+    };
+    lockFile = ./fixtures/multi/dotnet-purifier.lock.json;
+    packagesLock = lib.fileset.toSource {
+      root = ./fixtures/multi;
+      fileset = ./fixtures/multi/src/App/packages.lock.json;
+    };
+  };
+
   # True when evaluating the package names of a build fails, as a throw.
   evaluationFails =
     build: !(builtins.tryEval (builtins.deepSeq (builtins.attrNames build.packages) true)).success;
@@ -188,6 +208,7 @@ in
 
   # A build whose source holds no lockfile, from one kept outside it.
   conformance-external = external.packages.App;
+  conformance-external-packages-lock = externalPackagesLock.packages.App;
 
   multi-app = multi.packages.App;
   multi-greeter = multi.packages.Greeter;
