@@ -17,9 +17,17 @@ nix run github:nix-purifiers/dotnet-purifier -- lock
 ```
 
 Commit `dotnet-purifier.lock.json`. Then build with Nix. The flake's
-library has the builder:
+`overlays.default` adds `buildDotnetProject` to a package set, and a
+package written for `callPackage` takes it by name, like any other builder:
 
 ```nix
+# package.nix
+{ buildDotnetProject }:
+(buildDotnetProject { src = ./.; }).packages.App
+```
+
+```nix
+# flake.nix
 {
   inputs.dotnet-purifier.url = "github:nix-purifiers/dotnet-purifier";
   inputs.nixpkgs.follows = "dotnet-purifier/nixpkgs";
@@ -27,21 +35,23 @@ library has the builder:
   outputs = { nixpkgs, dotnet-purifier, ... }:
     let
       system = "x86_64-linux";
-      pkgs = nixpkgs.legacyPackages.${system};
-      build = dotnet-purifier.lib.dotnet-purifier.buildDotnetProject {
-        inherit pkgs;
-        src = ./.;
+      pkgs = import nixpkgs {
+        inherit system;
+        overlays = [
+          dotnet-purifier.overlays.default
+          (final: prev: { app = final.callPackage ./package.nix { }; })
+        ];
       };
     in
     {
-      packages.${system} = build.packages;
-      checks.${system}.tests = build.tests;
+      packages.${system}.default = pkgs.app;
+      checks.${system}.tests = (pkgs.buildDotnetProject { src = ./.; }).tests;
     };
 }
 ```
 
-`nix build '.#App'` builds the project in `App.csproj`; each project is
-named after its project file. The builder returns
+`nix build` builds the project in `App.csproj`. Each project is named after
+its project file. The builder returns
 
 - `packages.<project>`: an executable is published under `lib/<project>`
   with a command in `bin/` named after its assembly; a packable library is
@@ -55,15 +65,22 @@ named after its project file. The builder returns
 - `fetches`: the download entries the build fetches, for SBOM, license and
   vulnerability tools.
 
-It takes `pkgs`, `src`, `lockFile` (a lockfile kept outside `src` replaces
-any in it, so a packaging flake can build a project whose author does not
-lock it), `fetchers` (passed to the purifier library's fetchers, for a
-company mirror or credentials), `dotnet-sdk`, `nativeBuildInputs`,
-`buildInputs`, `srcFilter` and `allowStaleLock`.
-`lib.dotnet-purifier.readLock { src, lockFile }` reads the lock in the
-shape every purifier shares.
+The builder takes `src` and these optional arguments:
 
-## Everyday loop
+- `lockFile` is the lockfile. A lockfile kept outside `src` replaces any
+  in it, so a packaging flake can build a project whose author does not
+  lock it.
+- `fetchers` goes to the fetchers of the purifier library, for a company
+  mirror or credentials.
+- `dotnet-sdk`, `nativeBuildInputs`, `buildInputs`, `srcFilter` and
+  `allowStaleLock` are documented in `nix/lib/build-dotnet-project.nix`.
+
+The builder takes what it needs from the package set, such as
+`dotnetCorePackages` and `stdenv`, so `buildDotnetProject.override`
+replaces any of it. `lib.dotnet-purifier.readLock { src, lockFile }` reads
+the lock in the shape every purifier shares.
+
+## Development loop
 
 Run `dotnet` through the purifier, with the locked packages:
 
@@ -97,7 +114,7 @@ To publish the packages Nix built:
 nix run github:nix-purifiers/dotnet-purifier -- publish --source https://api.nuget.org/v3/index.json --api-key "$NUGET_API_KEY"
 ```
 
-## Offline work
+## Working offline
 
 ```zsh
 nix run github:nix-purifiers/dotnet-purifier -- prefetch
@@ -108,7 +125,7 @@ targets and the libraries a self-contained runtime loads, with
 garbage-collector roots under `.dotnet-purifier/`. It installs the packages
 into your NuGet package folder, restores the local tools and the
 workloads, and restores every project. Afterwards `dotnet-purifier dotnet`
-uses those store paths without evaluating Nix, so the everyday loop works
+uses those store paths without evaluating Nix, so the development loop works
 with the network cut off. When the lock changes, the next
 `dotnet-purifier dotnet` prefetches again.
 
@@ -123,7 +140,7 @@ and set `DOTNET_ROOT` to `.dotnet-purifier/sdk/share/dotnet`. Navigation into
 a package's code decompiles it locally; source files that SourceLink
 downloads need the network.
 
-## Errors and fixes
+## Troubleshooting
 
 | Message | Fix |
 | --- | --- |
@@ -135,9 +152,9 @@ downloads need the network.
 | `… has the hash …, and the lock records …: the package changed` | A package of a folder feed in the tree changed; relock. |
 | `… no longer records …, whose hash … reads from it` | A `packages.lock.json` changed; relock. |
 
-## Sources supported and refused
+## Supported language repositories
 
-Supported, each locked by URL and hash:
+The lock records packages from these sources, each by URL and hash:
 
 - **NuGet V3 feeds** of the build's `nuget.config`, with package source
   mapping. Each package's URL is its feed's flat-container URL.
@@ -157,7 +174,7 @@ Supported, each locked by URL and hash:
   lockfile keeps the hash of the file. Every package on nuget.org is
   signed.
 
-Refused, with the reason:
+A lock run stops, naming the reason, on these:
 
 - **Feeds outside NuGet V3**, and folder feeds outside the build's tree:
   the lock records a package by URL or by a file Nix can read.
@@ -179,7 +196,7 @@ differs. Workload tools run interactively on NixOS with `programs.nix-ld`.
 [FluentValidation](https://github.com/FluentValidation/FluentValidation) is
 a .NET validation library with a solution of packable libraries, a
 benchmark executable and a test project. To work on it with the locked
-packages, clone it, lock it and use the everyday loop:
+packages, clone it, lock it and use the development loop:
 
 ```zsh
 git clone https://github.com/FluentValidation/FluentValidation
@@ -189,9 +206,22 @@ nix run github:nix-purifiers/dotnet-purifier -- dotnet test
 ```
 
 To package it with Nix without changing the project, keep the lockfile in a
-flake of your own. The flake takes FluentValidation as an input:
+flake of your own, next to a package that passes it as `lockFile`:
 
 ```nix
+# package.nix
+{ buildDotnetProject, src }:
+(buildDotnetProject {
+  inherit src;
+  lockFile = ./dotnet-purifier.lock.json;
+}).packages.FluentValidation
+```
+
+The flake takes FluentValidation as an input and gives it to the package
+as `src`:
+
+```nix
+# flake.nix
 {
   inputs.dotnet-purifier.url = "github:nix-purifiers/dotnet-purifier";
   inputs.nixpkgs.follows = "dotnet-purifier/nixpkgs";
@@ -203,16 +233,23 @@ flake of your own. The flake takes FluentValidation as an input:
   outputs = { nixpkgs, dotnet-purifier, fluentvalidation, ... }:
     let
       system = "x86_64-linux";
-      pkgs = nixpkgs.legacyPackages.${system};
-      build = dotnet-purifier.lib.dotnet-purifier.buildDotnetProject {
-        inherit pkgs;
-        src = fluentvalidation;
-        lockFile = ./dotnet-purifier.lock.json;
+      pkgs = import nixpkgs {
+        inherit system;
+        overlays = [
+          dotnet-purifier.overlays.default
+          (final: prev: {
+            fluentvalidation = final.callPackage ./package.nix { src = fluentvalidation; };
+          })
+        ];
       };
     in
     {
-      packages.${system} = build.packages // { default = build.release; };
-      checks.${system}.tests = build.tests;
+      packages.${system}.default = pkgs.fluentvalidation;
+      checks.${system}.tests =
+        (pkgs.buildDotnetProject {
+          src = fluentvalidation;
+          lockFile = ./dotnet-purifier.lock.json;
+        }).tests;
     };
 }
 ```
@@ -226,9 +263,9 @@ git checkout <revision of the fluentvalidation input>
 nix run github:nix-purifiers/dotnet-purifier -- lock --lockfile ../my-flake/dotnet-purifier.lock.json
 ```
 
-`nix build` then gives the packages, `nix build '.#FluentValidation'` the
-package of the main library, and `nix flake check` runs the tests on every
-framework the test project targets.
+`nix build` then builds the package of the main library, and
+`nix flake check` runs the tests on every framework the test project
+targets.
 
 ## Credits
 

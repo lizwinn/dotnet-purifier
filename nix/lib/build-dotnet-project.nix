@@ -5,12 +5,15 @@
 # its own: the lock names every NuGet package the build installs, with its
 # hash, and every project of the build with its kind.
 #
-# The flake publishes it as `lib.dotnet-purifier.buildDotnetProject`, which
-# takes `pkgs` with the arguments below and calls this file with
-# `pkgs.callPackage`:
+# The file is a package for callPackage: the first argument set is what it
+# takes from the package set, and the result is the builder. The
+# dotnet-purifier overlay (`overlays.default`) adds it to the package set
+# as `buildDotnetProject`, so a package written for callPackage takes it
+# like any other dependency:
 #
-#   (lib.dotnet-purifier.buildDotnetProject { inherit pkgs; src = ./.; }).packages.App
+#   { buildDotnetProject }: (buildDotnetProject { src = ./.; }).packages.App
 #
+# and `buildDotnetProject.override` replaces what it takes from the set.
 # The builder returns
 #
 #   packages.<name>  project <name>, named after its project file:
@@ -40,9 +43,12 @@
 # asks for what the lock run installed.
 {
   lib,
-  pkgs,
   stdenv,
   callPackage,
+  fetchurl,
+  runCommand,
+  linkFarm,
+  symlinkJoin,
   # The shared purifier library (`lib.purifier` of
   # github:nix-purifiers/purifier).
   purifier,
@@ -130,10 +136,19 @@ let
   };
 
   # The downloads laid out at their paths by the shared purifier library,
-  # each a link to its fixed-output fetch.
+  # each a link to its fixed-output fetch. Every entry of the lock is a
+  # file entry, and these are the packages the library fetches and lays
+  # out file entries with.
   dependencies = purifier.tree (
     {
-      inherit pkgs;
+      pkgs = {
+        inherit
+          fetchurl
+          runCommand
+          writeText
+          python3
+          ;
+      };
       name = "dotnet-purifier-feed";
       entries = downloads;
     }
@@ -488,11 +503,11 @@ in
   # `dotnet-purifier dotnet` runs, so `dotnet test` runs every framework.
   sdk = sdkWithRuntimesFor (lib.concatMap (p: p.targetFrameworks) lock.projects);
   tests =
-    (pkgs.linkFarm "dotnet-purifier-tests" (
+    (linkFarm "dotnet-purifier-tests" (
       lib.mapAttrsToList (name: path: { inherit name path; }) testProjects
     )).overrideAttrs
       { passthru.projects = testProjects; };
-  release = pkgs.symlinkJoin {
+  release = symlinkJoin {
     name = "dotnet-purifier-release";
     paths = builtins.attrValues (lib.filterAttrs (_: p: p.kind == "package") packages);
   };

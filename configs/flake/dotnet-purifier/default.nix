@@ -57,7 +57,7 @@
           {
             checks = import ../../../tests {
               inherit pkgs;
-              inherit (self.lib.dotnet-purifier) buildDotnetProject;
+              overlay = self.overlays.default;
             };
             treefmt.programs.nixfmt.enable = true;
           };

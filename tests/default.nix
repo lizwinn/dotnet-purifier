@@ -4,14 +4,15 @@
 # access is the fixed-output fetches of locked packages and pinned sources.
 {
   pkgs,
-  # lib.dotnet-purifier.buildDotnetProject of the flake.
-  buildDotnetProject,
+  # The flake's default package overlay, which adds buildDotnetProject.
+  overlay,
 }:
 let
   inherit (pkgs) lib;
 
-  # Every fixture builds the way a consumer's package does.
-  build = args: buildDotnetProject ({ inherit pkgs; } // args);
+  # Every fixture builds the way a consumer's package does: through
+  # buildDotnetProject of a package set the overlay applies to.
+  build = (pkgs.extend overlay).buildDotnetProject;
 
   # An executable that depends on a library of the same build, a packable
   # library and an xunit test project, both multi-targeted, with packages
