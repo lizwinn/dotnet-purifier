@@ -1,0 +1,4 @@
+/result*
+bin/
+obj/
+.dotnet-purifier/

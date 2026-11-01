@@ -1,0 +1,131 @@
+{
+  "version": 1,
+  "sdk": {
+    "version": "10.0.403",
+    "major": 10
+  },
+  "targets": [
+    "src/App/App.csproj",
+    "src/Greeter/Greeter.csproj",
+    "test/Greeter.Tests/Greeter.Tests.csproj"
+  ],
+  "definitionHash": "sha256-fp/Xsi+vzRNDShvqrSG+jmf8x28AHPq7q14u4Txo41Q=",
+  "tools": false,
+  "projects": [
+    {
+      "name": "App",
+      "path": "src/App/App.csproj",
+      "kind": "exe",
+      "assemblyName": "greet",
+      "targetFrameworks": [
+        "net10.0"
+      ],
+      "frameworkReferences": [
+        "Microsoft.NETCore.App"
+      ]
+    },
+    {
+      "name": "Greeter",
+      "path": "src/Greeter/Greeter.csproj",
+      "kind": "package",
+      "assemblyName": "Greeter",
+      "targetFrameworks": [
+        "net10.0"
+      ],
+      "frameworkReferences": [
+        "Microsoft.NETCore.App"
+      ],
+      "packageId": "Example.Greeter",
+      "packageVersion": "1.0.0"
+    },
+    {
+      "name": "Greeter.Tests",
+      "path": "test/Greeter.Tests/Greeter.Tests.csproj",
+      "kind": "test",
+      "assemblyName": "Greeter.Tests",
+      "targetFrameworks": [
+        "net10.0"
+      ],
+      "frameworkReferences": [
+        "Microsoft.NETCore.App"
+      ]
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "humanizer.core.2.14.1.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/humanizer.core/2.14.1/humanizer.core.2.14.1.nupkg",
+      "hash": "sha512-yzqGU/HKNLZ9Uvr6kvSc3wYV/S5O/IvklIUW5WF7MuivGLY8wS5IZnLPkt7D1KW8Et2Enl0I3Lzg2vGWM24Xsw=="
+    },
+    {
+      "path": "microsoft.codecoverage.17.12.0.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/microsoft.codecoverage/17.12.0/microsoft.codecoverage.17.12.0.nupkg",
+      "hash": "sha512-POBqg788rrLApvncy8rvtyJ3ynsBdU0/SGUXD+vPqyRDM/aUJbPZWx01qalGJRK1GcArSku8QDd9AVMa0TkCkA=="
+    },
+    {
+      "path": "microsoft.net.test.sdk.17.12.0.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/microsoft.net.test.sdk/17.12.0/microsoft.net.test.sdk.17.12.0.nupkg",
+      "hash": "sha512-hGf8I8+yo15etavoMd+7OXcOG6/G7HYPDEJg5aQnhMzsxaUpq+udNZzSxmEN9rGTWMZOAVFcyNXNL7YBsN6chw=="
+    },
+    {
+      "path": "microsoft.testplatform.objectmodel.17.12.0.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/microsoft.testplatform.objectmodel/17.12.0/microsoft.testplatform.objectmodel.17.12.0.nupkg",
+      "hash": "sha512-klsXMgAPNWYo3ceakLkod4wYrk4lAV2Ehi676zUKgiVpQ5Yj6q3vsMhk/3pm97Ltk/hdcSW0rJKJvcQvTzPgYA=="
+    },
+    {
+      "path": "microsoft.testplatform.testhost.17.12.0.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/microsoft.testplatform.testhost/17.12.0/microsoft.testplatform.testhost.17.12.0.nupkg",
+      "hash": "sha512-gYM2BOGQvFEP2fZt61f3f5Gu+imL1G1bvGUrbJjpYcl66R6uzs5yESg0XMn8IgUgldz8RldOOaYmjk2KcSeG1Q=="
+    },
+    {
+      "path": "newtonsoft.json.13.0.1.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/newtonsoft.json/13.0.1/newtonsoft.json.13.0.1.nupkg",
+      "hash": "sha512-g3MbZi6vBTeaI/hEbvR7vBETSd1DWLe9i1E4P+nPY34v5i94zqUqDXvdWC3G+7tYN9SnsdU9zzegrnRz4h7nsQ=="
+    },
+    {
+      "path": "newtonsoft.json.13.0.3.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/newtonsoft.json/13.0.3/newtonsoft.json.13.0.3.nupkg",
+      "hash": "sha512-mbJSvHfRxfX3tR/U6n1WU+mWHXswYc+SB/hkOpx8yZZe68hNZGfymJu0cjsaJEkVzCMqePiU6LdIyogqfIn7kg=="
+    },
+    {
+      "path": "xunit.2.9.2.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/xunit/2.9.2/xunit.2.9.2.nupkg",
+      "hash": "sha512-bs4ccplaqCT7+jdAJhtt75uKq9qA3Jeld1ugiOgGEGSnzq8gkoa0VUqNEKkMPkBwV5COlAllNJGtGBfgxoZDrA=="
+    },
+    {
+      "path": "xunit.abstractions.2.0.3.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/xunit.abstractions/2.0.3/xunit.abstractions.2.0.3.nupkg",
+      "hash": "sha512-PKJri5f0qEQPFvgY6CZR9XG8JROlWSdC/ZYLkkDQuID++Egn+yWjB+Yf57AZ8U6GRlP7z33uDQ4/r5BZPer2JA=="
+    },
+    {
+      "path": "xunit.analyzers.1.16.0.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/xunit.analyzers/1.16.0/xunit.analyzers.1.16.0.nupkg",
+      "hash": "sha512-65QLxnRoOqpAn2hMnjI1FLmQEjzUye2h4MwRVe1k151K+UFG1Ehr/s/MLwNJ6pCNoyoJjOoNuF7OGW4mH2bdaQ=="
+    },
+    {
+      "path": "xunit.assert.2.9.2.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/xunit.assert/2.9.2/xunit.assert.2.9.2.nupkg",
+      "hash": "sha512-huNfINLH5HnyiPImimKv7liIJJ2MgRdJYT7ky3464zR62SH7o9JjsgMiSZRXha46kgTCNjKSNN1VvctC+USp7w=="
+    },
+    {
+      "path": "xunit.core.2.9.2.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/xunit.core/2.9.2/xunit.core.2.9.2.nupkg",
+      "hash": "sha512-kW48d7YL7ryT4zuWTjJN491cJwY8aYiIAxDaXJRebgMIw40PmlREiiaIz33QUFmglcfLlaoRyZcI4sl70kARiw=="
+    },
+    {
+      "path": "xunit.extensibility.core.2.9.2.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/xunit.extensibility.core/2.9.2/xunit.extensibility.core.2.9.2.nupkg",
+      "hash": "sha512-sosk+dg5Cn4N9MKOjQ1wFTvfgduqiX1DLRZHEYXIaLOuTJbCJeXfn7XhAVDGY+zeB8aX3jCKL8BcDp4EJCdZXw=="
+    },
+    {
+      "path": "xunit.extensibility.execution.2.9.2.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/xunit.extensibility.execution/2.9.2/xunit.extensibility.execution.2.9.2.nupkg",
+      "hash": "sha512-oOnG3GsmntYZqZleKMHFlAxxCxn+ZQrcY7GEKDFP0Zpjx/sTE61cEblJk4Dkl4He0t02DN4gmJ4hsQDoLTdo7g=="
+    },
+    {
+      "path": "xunit.runner.visualstudio.2.8.2.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/xunit.runner.visualstudio/2.8.2/xunit.runner.visualstudio.2.8.2.nupkg",
+      "hash": "sha512-z+EzhXxLlgn/n7FQ5J0DJxbGns/1vx1kPJh4Uq+OPChRpdSy3x/MCqQ/jtkboc7BRMthz14k7pL0D3iq/e4d0A=="
+    }
+  ]
+}
