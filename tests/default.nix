@@ -26,6 +26,10 @@ let
   # Core executable.
   sources = buildDotnetProject { src = ./fixtures/sources; };
 
+  # A WebAssembly executable relinked with Emscripten, from the packs of
+  # the wasm-tools workload.
+  workloads = buildDotnetProject { src = ./fixtures/workloads; };
+
   # Fails unless command $1 prints $2.
   prints =
     name: command: expected:
@@ -96,6 +100,17 @@ in
   sources-lint = sources.packages.Lint;
 
   sources-web = sources.packages.Web;
+
+  workloads-wasm = workloads.packages.Wasm;
+
+  # The workload's Emscripten relinked the native runtime: the build
+  # produced its own dotnet.native.wasm rather than taking the one in the
+  # runtime pack.
+  workloads-wasm-relinked = pkgs.runCommand "workloads-wasm-relinked" { } ''
+    framework=${workloads.packages.Wasm.artifacts."lib/Wasm/wwwroot"}/_framework
+    ls "$framework"/dotnet.native*.wasm
+    touch "$out"
+  '';
 
   # The ASP.NET Core executable runs on the ASP.NET Core runtime.
   sources-web-runs = prints "sources-web-runs" "${

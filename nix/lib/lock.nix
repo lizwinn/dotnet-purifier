@@ -6,6 +6,8 @@
 #   sdk            the .NET SDK the lock run used, as { version, major }
 #   tools          whether the build has local tools in
 #                  .config/dotnet-tools.json
+#   workloads      the SDK workloads the build installs, whose packs are
+#                  among `artifacts`
 #   projects       the projects of the build, each as { name, path, kind,
 #                  assemblyName, targetFrameworks, frameworkReferences };
 #                  `kind` is "exe", "package" (a packable library), "library"
@@ -24,6 +26,9 @@
 #   localPackages  every package that comes from a folder feed inside the
 #                  build, as { path, file, hash }, where `file` is the
 #                  package's file relative to the build root
+#   sdkPackages    every package that comes from the folder feed the SDK
+#                  carries (share/dotnet/library-packs), as { path, file,
+#                  hash }, where `file` is the package's file in that feed
 {
   lib,
   lockFile,
@@ -41,8 +46,10 @@ else
     inherit (lock)
       sdk
       tools
+      workloads
       projects
       localPackages
+      sdkPackages
       ;
     downloads = lock.artifacts;
   }

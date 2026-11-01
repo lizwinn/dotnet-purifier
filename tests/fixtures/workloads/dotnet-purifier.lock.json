@@ -1,0 +1,122 @@
+{
+  "version": 1,
+  "sdk": {
+    "version": "10.0.403",
+    "major": 10
+  },
+  "targets": [
+    "src/Wasm/Wasm.csproj"
+  ],
+  "definitionHash": "sha256-u0e52aQbFSMRwtdpfKitRZfqn3ec0+FPt5DFo8HNclw=",
+  "tools": false,
+  "workloads": [
+    "wasm-tools"
+  ],
+  "projects": [
+    {
+      "name": "Wasm",
+      "path": "src/Wasm/Wasm.csproj",
+      "kind": "exe",
+      "assemblyName": "wasm",
+      "targetFrameworks": [
+        "net10.0"
+      ],
+      "frameworkReferences": [
+        "Microsoft.NETCore.App"
+      ],
+      "selfContained": true,
+      "runtimeIdentifier": "browser-wasm",
+      "artifacts": [
+        "lib/Wasm/wwwroot"
+      ]
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "microsoft.net.runtime.emscripten.3.1.56.cache.linux-arm64/10.0.14/microsoft.net.runtime.emscripten.3.1.56.cache.linux-arm64.10.0.14.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/microsoft.net.runtime.emscripten.3.1.56.cache.linux-arm64/10.0.14/microsoft.net.runtime.emscripten.3.1.56.cache.linux-arm64.10.0.14.nupkg",
+      "mirrors": [],
+      "hash": "sha512-nlgtoPGzlmhPsSzr7f3JFQg+LTiLW+efHs7CQaq2TrYmnZ1VtLkOeZVnwuDJmYBzAmSVnhr0yuyq1boeMW7Dsw=="
+    },
+    {
+      "path": "microsoft.net.runtime.emscripten.3.1.56.cache.linux-x64/10.0.14/microsoft.net.runtime.emscripten.3.1.56.cache.linux-x64.10.0.14.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/microsoft.net.runtime.emscripten.3.1.56.cache.linux-x64/10.0.14/microsoft.net.runtime.emscripten.3.1.56.cache.linux-x64.10.0.14.nupkg",
+      "mirrors": [],
+      "hash": "sha512-9GE7B27Gbsi8I6Fo7BjgWhJMeshIkJXd5MVdmj7lEcswWYZA0ghw36d1ux8kdxo98rjbQgLIZx7c8U+JxCB71w=="
+    },
+    {
+      "path": "microsoft.net.runtime.emscripten.3.1.56.node.linux-arm64/10.0.14/microsoft.net.runtime.emscripten.3.1.56.node.linux-arm64.10.0.14.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/microsoft.net.runtime.emscripten.3.1.56.node.linux-arm64/10.0.14/microsoft.net.runtime.emscripten.3.1.56.node.linux-arm64.10.0.14.nupkg",
+      "mirrors": [],
+      "hash": "sha512-eV1coWIamxUaXKjoaOx66oGtw7ge9ZnGV7MjuBXwDx83c9hWZ22NK67NPfxQEkKb5Wpkq+jPY7dhmbCDTa9XAQ=="
+    },
+    {
+      "path": "microsoft.net.runtime.emscripten.3.1.56.node.linux-x64/10.0.14/microsoft.net.runtime.emscripten.3.1.56.node.linux-x64.10.0.14.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/microsoft.net.runtime.emscripten.3.1.56.node.linux-x64/10.0.14/microsoft.net.runtime.emscripten.3.1.56.node.linux-x64.10.0.14.nupkg",
+      "mirrors": [],
+      "hash": "sha512-31lVsnowtLoO5fcbelh2oNjMxEss12cYTfD8JhDom/o/8/Tv7RiNemsVuM5mExZ7imHR0tRHw0cidex1vTQJbQ=="
+    },
+    {
+      "path": "microsoft.net.runtime.emscripten.3.1.56.sdk.linux-arm64/10.0.14/microsoft.net.runtime.emscripten.3.1.56.sdk.linux-arm64.10.0.14.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/microsoft.net.runtime.emscripten.3.1.56.sdk.linux-arm64/10.0.14/microsoft.net.runtime.emscripten.3.1.56.sdk.linux-arm64.10.0.14.nupkg",
+      "mirrors": [],
+      "hash": "sha512-ceGSPlr/UVcSZBIDiWau+EsOsxq8qwq1pv6GE6ZiNmaE5syzzlFH2XFY6aKAZKCpb4dcwv2YjPfZbSUAPR9hYA=="
+    },
+    {
+      "path": "microsoft.net.runtime.emscripten.3.1.56.sdk.linux-x64/10.0.14/microsoft.net.runtime.emscripten.3.1.56.sdk.linux-x64.10.0.14.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/microsoft.net.runtime.emscripten.3.1.56.sdk.linux-x64/10.0.14/microsoft.net.runtime.emscripten.3.1.56.sdk.linux-x64.10.0.14.nupkg",
+      "mirrors": [],
+      "hash": "sha512-GIJULLQRYirE2xEUtM5KZZq57aN5boHiYnufVbo3728QVFsjxtMf0pX+8tPOMgKaoob3ejgXKc642+HjsW/iUA=="
+    },
+    {
+      "path": "microsoft.net.runtime.monoaotcompiler.task/10.0.14/microsoft.net.runtime.monoaotcompiler.task.10.0.14.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/microsoft.net.runtime.monoaotcompiler.task/10.0.14/microsoft.net.runtime.monoaotcompiler.task.10.0.14.nupkg",
+      "mirrors": [],
+      "hash": "sha512-qiIgBoLfHKBUGvbtz2XC8pN1NqG/Pv7I5kavUWHLWkwGzhpBXUl78vilPY2PXKFBpEReAII21tKTI+kQfb8uWQ=="
+    },
+    {
+      "path": "microsoft.net.runtime.monotargets.sdk/10.0.14/microsoft.net.runtime.monotargets.sdk.10.0.14.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/microsoft.net.runtime.monotargets.sdk/10.0.14/microsoft.net.runtime.monotargets.sdk.10.0.14.nupkg",
+      "mirrors": [],
+      "hash": "sha512-KEU4diHUfpIa3MsWQXCRcIrjnNRW4CxiyW2jFjcI/AppfFj2dlG+0uOnBfC/aLvdlE/hD0IOmC2+/YuAUvCA6g=="
+    },
+    {
+      "path": "microsoft.net.runtime.webassembly.sdk/10.0.14/microsoft.net.runtime.webassembly.sdk.10.0.14.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/microsoft.net.runtime.webassembly.sdk/10.0.14/microsoft.net.runtime.webassembly.sdk.10.0.14.nupkg",
+      "mirrors": [],
+      "hash": "sha512-alLuaq7RC3HPwazrWnB6CELCYIdCEeHFjkIJT/eaVLSO7qh9GmJWqO+2attV9lS3tawRY1vwSUzcYx4OYeXcuQ=="
+    },
+    {
+      "path": "microsoft.net.sdk.webassembly.pack/10.0.14/microsoft.net.sdk.webassembly.pack.10.0.14.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/microsoft.net.sdk.webassembly.pack/10.0.14/microsoft.net.sdk.webassembly.pack.10.0.14.nupkg",
+      "mirrors": [],
+      "hash": "sha512-5k/K6981Uzk0JnXIwy7c2ziDO6oQZ3wRrjtJBXMkdLmLKrXEE6KmCwTrbwKFA/Cy58fC/GcxrGvwgM6m7I8Vtg=="
+    },
+    {
+      "path": "microsoft.netcore.app.runtime.aot.linux-arm64.cross.browser-wasm/10.0.14/microsoft.netcore.app.runtime.aot.linux-arm64.cross.browser-wasm.10.0.14.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/microsoft.netcore.app.runtime.aot.linux-arm64.cross.browser-wasm/10.0.14/microsoft.netcore.app.runtime.aot.linux-arm64.cross.browser-wasm.10.0.14.nupkg",
+      "mirrors": [],
+      "hash": "sha512-e6dA7IJYVQVPmoqJkR51Yx0avIezNVRMjrXpnIvzyC8D3F0bhoDHiPeULNmxgXDyq+KrkKzeyfjWSnsuol7xhA=="
+    },
+    {
+      "path": "microsoft.netcore.app.runtime.aot.linux-x64.cross.browser-wasm/10.0.14/microsoft.netcore.app.runtime.aot.linux-x64.cross.browser-wasm.10.0.14.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/microsoft.netcore.app.runtime.aot.linux-x64.cross.browser-wasm/10.0.14/microsoft.netcore.app.runtime.aot.linux-x64.cross.browser-wasm.10.0.14.nupkg",
+      "mirrors": [],
+      "hash": "sha512-RoaJu9gFGy3VcQk4+R07kfadVwqemzpHOwCPtVQm4r3UWkeEC5Etini+i861UwJyw6R9cnQ22L8VI5uKrK1qTw=="
+    },
+    {
+      "path": "microsoft.netcore.app.runtime.mono.browser-wasm/10.0.14/microsoft.netcore.app.runtime.mono.browser-wasm.10.0.14.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/microsoft.netcore.app.runtime.mono.browser-wasm/10.0.14/microsoft.netcore.app.runtime.mono.browser-wasm.10.0.14.nupkg",
+      "mirrors": [],
+      "hash": "sha512-TClTxmTOoOiIIMeENr0h+sjzLGwKEZnzkKFx3MYlZYtvH4rTM51T20pOf9FaNwJcsiYvDmbsCPUZ8+fryppH2w=="
+    }
+  ],
+  "localPackages": [],
+  "sdkPackages": [
+    {
+      "path": "microsoft.net.illink.tasks/10.0.14/microsoft.net.illink.tasks.10.0.14.nupkg",
+      "file": "Microsoft.NET.ILLink.Tasks.10.0.14.nupkg",
+      "hash": "sha512-gGRO76tg88RCExNUJO6ZkOnZY0IxB1qUZT3zxu9X8JwWXubvVhyV9IS5Qh0C4qYSSgZDClRLtJroe4fgEJXKdA=="
+    }
+  ]
+}

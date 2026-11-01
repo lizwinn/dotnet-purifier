@@ -44,6 +44,7 @@
   makeWrapper,
   writeText,
   autoPatchelfHook,
+  python3,
   icu,
   openssl,
   zlib,
@@ -115,7 +116,8 @@ let
 
   packageFolder = callPackage ./package-folder.nix {
     inherit dependencies;
-    inherit (lock) downloads localPackages;
+    inherit (lock) downloads localPackages sdkPackages;
+    inherit sdk;
     src = filteredSrc;
   };
 
@@ -169,13 +171,35 @@ let
     export DOTNET_NUGET_SIGNATURE_VERIFICATION=false
     export MSBUILDDISABLENODEREUSE=1
     export RestoreSources=${packageFolder}
+    # MSBuild starts task hosts through the SDK's MSBuild apphost, which
+    # finds the runtime only through DOTNET_ROOT.
+    export DOTNET_ROOT=${sdk}/share/dotnet
     export NETCoreTargetingPackRoot="$TMPDIR/packs"
     mkdir -p "$HOME" "$XDG_RUNTIME_DIR" "$NUGET_PACKAGES" "$NETCoreTargetingPackRoot"
     ln -s ${sdk}/share/dotnet/packs/*.Ref "$NETCoreTargetingPackRoot"/
     chmod 700 "$XDG_RUNTIME_DIR"
     cp -rs --no-preserve=mode ${packageFolder}/. "$NUGET_PACKAGES"
-    ${lib.optionalString lock.tools ''dotnet tool restore --configfile ${toolConfig}''}
+    ${lib.optionalString lock.tools "dotnet tool restore --configfile ${toolConfig}"}
+    ${lib.optionalString (lock.workloads != [ ]) ''
+      dotnet workload install ${lib.escapeShellArgs lock.workloads} --skip-manifest-update \
+        --source ${packageFolder}
+      autoPatchelf "$HOME/.dotnet/packs"
+    ''}
   '';
+
+  # A workload install puts its packs under $HOME/.dotnet, and the native
+  # tools among them, such as Emscripten's clang and Node.js, run once
+  # patched. Emscripten runs on the system's Python on Linux.
+  workloadInputs = lib.optionalAttrs (lock.workloads != [ ]) {
+    nativeBuildInputs = [
+      autoPatchelfHook
+      python3
+    ];
+    buildInputs = [
+      stdenv.cc.cc.lib
+      zlib
+    ];
+  };
 
   # The major version of a target framework such as net10.0 or
   # net8.0-windows.
@@ -217,8 +241,13 @@ let
         pname = p.name;
         version = p.packageVersion or "0";
         src = filteredSrc;
-        nativeBuildInputs = [ sdk ] ++ nativeBuildInputs ++ (attrs.nativeBuildInputs or [ ]);
-        buildInputs = buildInputs ++ (attrs.buildInputs or [ ]);
+        nativeBuildInputs = [
+          sdk
+        ]
+        ++ nativeBuildInputs
+        ++ (workloadInputs.nativeBuildInputs or [ ])
+        ++ (attrs.nativeBuildInputs or [ ]);
+        buildInputs = buildInputs ++ (workloadInputs.buildInputs or [ ]) ++ (attrs.buildInputs or [ ]);
         # The build reads the build's own NuGet configuration, as the lock
         # run did, rather than one the SDK's setup hook writes.
         dontConfigureNuget = true;
@@ -286,6 +315,22 @@ let
       meta.mainProgram = p.assemblyName;
     };
 
+  # A WebAssembly executable is the files a web server serves, under
+  # lib/<name>/wwwroot.
+  mkWebAssembly =
+    p:
+    mkBuild p {
+      installPhase = ''
+        runHook preInstall
+        ${dotnetSetup}
+        ${publish p [ ]}
+        runHook postInstall
+      '';
+    };
+
+  isWebAssembly =
+    p: lib.hasPrefix "browser-" p.runtimeIdentifier || lib.hasPrefix "wasi-" p.runtimeIdentifier;
+
   mkPackage =
     p:
     mkBuild p {
@@ -332,7 +377,12 @@ let
     let
       drv =
         if p.kind == "exe" then
-          if p.selfContained then mkSelfContained p else mkFrameworkDependent p
+          if isWebAssembly p then
+            mkWebAssembly p
+          else if p.selfContained then
+            mkSelfContained p
+          else
+            mkFrameworkDependent p
         else if p.kind == "package" then
           mkPackage p
         else

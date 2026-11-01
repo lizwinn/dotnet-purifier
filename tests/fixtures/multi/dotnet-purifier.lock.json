@@ -11,6 +11,7 @@
   ],
   "definitionHash": "sha256-fp/Xsi+vzRNDShvqrSG+jmf8x28AHPq7q14u4Txo41Q=",
   "tools": false,
+  "workloads": [],
   "projects": [
     {
       "name": "App",
@@ -104,12 +105,6 @@
       "hash": "sha512-mbJSvHfRxfX3tR/U6n1WU+mWHXswYc+SB/hkOpx8yZZe68hNZGfymJu0cjsaJEkVzCMqePiU6LdIyogqfIn7kg=="
     },
     {
-      "path": "xunit/2.9.2/xunit.2.9.2.nupkg",
-      "url": "https://api.nuget.org/v3-flatcontainer/xunit/2.9.2/xunit.2.9.2.nupkg",
-      "mirrors": [],
-      "hash": "sha512-bs4ccplaqCT7+jdAJhtt75uKq9qA3Jeld1ugiOgGEGSnzq8gkoa0VUqNEKkMPkBwV5COlAllNJGtGBfgxoZDrA=="
-    },
-    {
       "path": "xunit.abstractions/2.0.3/xunit.abstractions.2.0.3.nupkg",
       "url": "https://api.nuget.org/v3-flatcontainer/xunit.abstractions/2.0.3/xunit.abstractions.2.0.3.nupkg",
       "mirrors": [],
@@ -150,7 +145,14 @@
       "url": "https://api.nuget.org/v3-flatcontainer/xunit.runner.visualstudio/2.8.2/xunit.runner.visualstudio.2.8.2.nupkg",
       "mirrors": [],
       "hash": "sha512-z+EzhXxLlgn/n7FQ5J0DJxbGns/1vx1kPJh4Uq+OPChRpdSy3x/MCqQ/jtkboc7BRMthz14k7pL0D3iq/e4d0A=="
+    },
+    {
+      "path": "xunit/2.9.2/xunit.2.9.2.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/xunit/2.9.2/xunit.2.9.2.nupkg",
+      "mirrors": [],
+      "hash": "sha512-bs4ccplaqCT7+jdAJhtt75uKq9qA3Jeld1ugiOgGEGSnzq8gkoa0VUqNEKkMPkBwV5COlAllNJGtGBfgxoZDrA=="
     }
   ],
-  "localPackages": []
+  "localPackages": [],
+  "sdkPackages": []
 }

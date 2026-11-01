@@ -29,6 +29,7 @@ import base64
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -160,8 +161,11 @@ def sdk(major):
 
 def with_sdk_on_path(env, dotnet):
     """The environment with the SDK first on PATH, as a build that runs
-    `dotnet` itself expects, and as the Nix build has it."""
+    `dotnet` itself expects, and as the Nix build has it. DOTNET_ROOT names
+    the SDK too: MSBuild starts task hosts through the SDK's MSBuild
+    apphost, which finds the runtime only through it."""
     env["PATH"] = f"{Path(dotnet).parent}{os.pathsep}{env.get('PATH', '')}"
+    env["DOTNET_ROOT"] = str(Path(dotnet).parent.parent / "share" / "dotnet")
     return env
 
 
@@ -302,6 +306,8 @@ def artifacts_of(project, out):
     name, assembly = project["name"], project["assemblyName"]
     if project["kind"] == "package":
         return sorted(p.name for p in out.iterdir() if p.suffix in (".nupkg", ".snupkg"))
+    if project["kind"] == "exe" and project["runtimeIdentifier"].startswith(("browser-", "wasi-")):
+        return [f"lib/{name}/wwwroot"]
     if project["kind"] == "exe":
         return [f"bin/{assembly}"]
     if project["kind"] == "library":
@@ -344,36 +350,133 @@ def configured_sources(dotnet, build, env):
     return sources
 
 
+def fetch_from_feeds(package_id, version, sources, bases, expected=None):
+    """The URL and SRI SHA-512 of a package on the first of the http(s)
+    sources that serves it, and, when `expected` is given, serves a file
+    with that hash. Returns None when no source does."""
+    name = f"{package_id}.{version}.nupkg"
+    for source in sources:
+        if not source.startswith(("https://", "http://")):
+            continue
+        url = f"{service_index_base(source, bases)}{package_id}/{version}/{name}"
+        found = prefetch(url)
+        if found is not None and (expected is None or found == expected):
+            return url, found
+    return None
+
+
+def prefetch(url):
+    """The SRI SHA-512 of the file at a URL, fetched into the store with
+    the fetcher a Nix build of the lockfile uses, or None when it cannot be
+    fetched."""
+    result = subprocess.run(
+        ["nix", "store", "prefetch-file", "--json", "--hash-type", "sha512", url],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        return None
+    return json.loads(result.stdout)["hash"]
+
+
 def find_on_feeds(package_id, version, nupkg, sources, bases):
     """The URL of a package on the first of the sources that serves the
     same file, for a package NuGet installed without recording its feed.
     `dotnet tool restore` installs packages that way."""
-    expected = sha512_sri(nupkg)
-    for source in sources:
-        if not source.startswith(("https://", "http://")):
-            continue
-        url = f"{service_index_base(source, bases)}{package_id}/{version}/{nupkg.name}"
-        digest = hashlib.sha512()
-        try:
-            with urllib.request.urlopen(url) as response:
-                for block in iter(lambda: response.read(1 << 20), b""):
-                    digest.update(block)
-        except OSError:
-            continue
-        if "sha512-" + base64.b64encode(digest.digest()).decode() == expected:
-            return url
-    fail(f"{package_id} {version} was installed without its feed, and no configured feed serves the same file")
+    found = fetch_from_feeds(package_id, version, sources, bases, expected=sha512_sri(nupkg))
+    if found is None:
+        fail(f"{package_id} {version} was installed without its feed, and no configured feed serves the same file")
+    return found[0]
 
 
-def installed_packages(packages_dir, build, sources):
+def installed_workloads(dotnet, build, env):
+    """The workloads installed in the lock run's .NET home."""
+    out = run(dotnet, ["workload", "list", "--machine-readable"], build, env, capture=True)
+    for line in reversed(out.splitlines()):
+        if line.startswith("{"):
+            return sorted(json.loads(line)["installed"])
+    fail("`dotnet workload list --machine-readable` printed no JSON")
+
+
+def read_manifest_json(text):
+    """Parses a workload manifest. The SDK reads manifests as JSON with
+    comments and trailing commas, so they are removed first, outside
+    strings."""
+    tokens = re.finditer(r'"(?:\\.|[^"\\])*"|//[^\n]*|/\*.*?\*/|,(?=\s*[\]}])', text, re.DOTALL)
+    kept, last = [], 0
+    for token in tokens:
+        if not token.group().startswith('"'):
+            kept.append(text[last : token.start()])
+            last = token.end()
+    kept.append(text[last:])
+    return json.loads("".join(kept))
+
+
+def workload_packs(dotnet, workloads):
+    """The packs that installing the workloads installs, on every machine
+    of BUILD_HOSTS, as (id, version) pairs in lower case. They come from
+    the workload manifests the SDK ships with, which a workload install
+    with --skip-manifest-update reads: a workload names its packs and the
+    workloads it extends, and a pack names its version and, when it
+    differs by machine, the package for each machine (`alias-to`)."""
+    manifests = Path(dotnet).parent.parent / "share" / "dotnet" / "sdk-manifests"
+    definitions, packs = {}, {}
+    for path in sorted(manifests.glob("*/*/*/WorkloadManifest.json")) + sorted(manifests.glob("*/*/WorkloadManifest.json")):
+        manifest = read_manifest_json(path.read_text())
+        definitions.update(manifest.get("workloads", {}))
+        packs.update(manifest.get("packs", {}))
+    names, seen, pending = set(), set(), list(workloads)
+    while pending:
+        workload = pending.pop()
+        if workload in seen:
+            continue
+        seen.add(workload)
+        definition = definitions[workload]
+        names.update(definition.get("packs", []))
+        pending.extend(definition.get("extends", []))
+    result = set()
+    for name in names:
+        pack = packs[name]
+        alias = pack.get("alias-to")
+        for host in BUILD_HOSTS:
+            package_id = alias.get(host, alias.get("any")) if alias else name
+            # A pack with no package for a machine does not apply there,
+            # as the Python of Emscripten does not on Linux.
+            if package_id:
+                result.add((package_id.lower(), pack["version"].lower()))
+    return sorted(result)
+
+
+def workload_artifacts(dotnet, workloads, sources, bases, known):
+    """The download entries of the workloads' packs that are not among the
+    known paths."""
+    artifacts = []
+    for package_id, version in workload_packs(dotnet, workloads):
+        path = f"{package_id}/{version}/{package_id}.{version}.nupkg"
+        if path in known:
+            continue
+        found = fetch_from_feeds(package_id, version, sources, bases)
+        if found is None:
+            fail(f"no configured feed serves the workload pack {package_id} {version}")
+        artifacts.append({"path": path, "url": found[0], "mirrors": [], "hash": found[1]})
+    return artifacts
+
+
+def installed_packages(packages_dir, build, sources, dotnet):
     """Every package of a NuGet package folder: the downloaded ones as
-    download entries { path, url, mirrors, hash }, and those from folder feeds inside
-    the build as { path, file, hash }, where `file` is the package's file
-    in the build. `path` is where the package lies in a NuGet package
+    download entries { path, url, mirrors, hash }, those from folder feeds
+    inside the build as { path, file, hash }, where `file` is the package's
+    file in the build, and those from the folder feed the SDK carries
+    (library-packs) as { path, file, hash }, where `file` is the package's
+    file in that feed. `path` is where the package lies in a NuGet package
     folder."""
     bases = {}
     artifacts = []
     local = []
+    sdk_packages = []
+    library_packs = (Path(dotnet).parent.parent / "share" / "dotnet" / "library-packs").resolve()
     for metadata in sorted(packages_dir.glob("*/*/.nupkg.metadata")):
         version_dir = metadata.parent
         package_id = version_dir.parent.name
@@ -391,6 +494,12 @@ def installed_packages(packages_dir, build, sources):
             artifacts.append({"path": path, "url": url, "mirrors": [], "hash": sha512_sri(nupkg)})
             continue
         feed = Path(source).resolve()
+        if feed == library_packs or feed.name == "library-packs" and (feed.parent / "sdk").is_dir():
+            file = local_package_file(feed, package_id, version)
+            if file is None:
+                fail(f"{package_id} {version} is not in the SDK's feed {source}")
+            sdk_packages.append({"path": path, "file": file.name, "hash": sha512_sri(nupkg)})
+            continue
         if not feed.is_relative_to(build.resolve()):
             fail(
                 f"{package_id} {version} comes from the folder {source}, outside the build; "
@@ -400,7 +509,7 @@ def installed_packages(packages_dir, build, sources):
         if file is None:
             fail(f"{package_id} {version} is not in its folder feed {source}")
         local.append({"path": path, "file": str(file.relative_to(build.resolve())), "hash": sha512_sri(nupkg)})
-    return artifacts, local
+    return artifacts, local, sdk_packages
 
 
 def lock(args):
@@ -430,9 +539,13 @@ def lock(args):
 
         sdk_version = run(dotnet, ["--version"], build, env, capture=True).strip()
         info(f"locking with the .NET SDK {sdk_version}")
-        # A build may run the local tools, so they are installed first.
+        # A build may run the local tools, and needs its workloads, so both
+        # are installed first.
         if tools:
             run(dotnet, ["tool", "restore"], build, env)
+        for target in targets:
+            run(dotnet, ["workload", "restore", target, "--skip-manifest-update"], build, env)
+        workloads = installed_workloads(dotnet, build, env)
         projects = [describe(dotnet, build, p, env) for p in project_files(dotnet, build, targets, env)]
         if not projects:
             fail("the build has no projects")
@@ -452,7 +565,11 @@ def lock(args):
                 run(dotnet, ["restore", *restore, f"-p:NETCoreSdkRuntimeIdentifier={host}"], build, env)
 
         sources = configured_sources(dotnet, build, env)
-        artifacts, local = installed_packages(home / "packages", build, sources)
+        bases = {}
+        artifacts, local, sdk_packages = installed_packages(home / "packages", build, sources, dotnet)
+        known = {a["path"] for a in artifacts}
+        artifacts += workload_artifacts(dotnet, workloads, sources, bases, known)
+        artifacts.sort(key=lambda a: a["path"])
 
     data = {
         "version": FORMAT_VERSION,
@@ -460,12 +577,14 @@ def lock(args):
         "targets": targets,
         "definitionHash": def_hash,
         "tools": tools,
+        "workloads": workloads,
         "projects": projects,
         "artifacts": artifacts,
         "localPackages": local,
+        "sdkPackages": sdk_packages,
     }
     lock_path.write_text(json.dumps(data, indent=2) + "\n")
-    info(f"wrote {LOCK_NAME}: {len(projects)} projects, {len(artifacts) + len(local)} packages")
+    info(f"wrote {LOCK_NAME}: {len(projects)} projects, {len(artifacts) + len(local) + len(sdk_packages)} packages")
 
 
 def read_lock(root):
@@ -549,6 +668,10 @@ def run_dotnet(args):
     # it the same libraries.
     libraries = nix_build(interactive_expr(root, "runtimeLibraries"), out_link=state / "runtime-libraries")[0]
     env["LD_LIBRARY_PATH"] = os.pathsep.join(filter(None, [f"{libraries}/lib", env.get("LD_LIBRARY_PATH")]))
+    # A workload install reads its packs from the locked packages, with the
+    # manifests the SDK ships with, as in the lock run.
+    if args[:2] in (["workload", "restore"], ["workload", "install"]) and "--source" not in args:
+        args = [*args, "--skip-manifest-update", "--source", package_folder]
     if args[:2] == ["tool", "restore"] and "--configfile" not in args:
         args = [*args, "--configfile", str(locked_config(state / "nuget.config", package_folder))]
     os.execve(dotnet, ["dotnet", *args], with_sdk_on_path(env, dotnet))

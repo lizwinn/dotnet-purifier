@@ -11,6 +11,7 @@
   ],
   "definitionHash": "sha256-7O8/8qLwT0/QbIaCq0mErTcaqlP4reNslQXBDvILkBI=",
   "tools": true,
+  "workloads": [],
   "projects": [
     {
       "name": "Lint",
@@ -105,5 +106,6 @@
       "file": "local-packages/Example.Local.1.0.0.nupkg",
       "hash": "sha512-Vzus5C6RBLWNmUUU0k5onIISayDBQB9wB8AftIyVUyWmNT/otf2ftaDk0P1sGai5PTEjtEA79nQ9oSuGCHI2dQ=="
     }
-  ]
+  ],
+  "sdkPackages": []
 }

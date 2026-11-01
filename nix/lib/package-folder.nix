@@ -17,6 +17,11 @@
   localPackages,
   # The build root the local packages come from.
   src,
+  # The packages of the SDK's own folder feed, { path, file, hash }, with
+  # `file` relative to that feed.
+  sdkPackages,
+  # The SDK whose feed they come from.
+  sdk,
 }:
 let
   packages =
@@ -27,7 +32,11 @@ let
     ++ map (p: {
       inherit (p) path hash;
       file = "${src}/${p.file}";
-    }) localPackages;
+    }) localPackages
+    ++ map (p: {
+      inherit (p) path hash;
+      file = "${sdk}/share/dotnet/library-packs/${p.file}";
+    }) sdkPackages;
 in
 runCommand "dotnet-purifier-packages"
   {
