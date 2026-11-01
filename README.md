@@ -1,47 +1,107 @@
 # dotnet-purifier
 
-dotnet-purifier builds .NET projects in the Nix sandbox from a lockfile of
-their NuGet downloads. You keep using the `dotnet` command and your own
-project files. The lockfile, `dotnet-purifier.lock.json`, records every
-package a build installs, by URL and SHA-512, and every project with the
-files it produces. Nix reads it at evaluation time, so the repository needs
-no generated Nix files. The lockfile records every package even for a
-project in NuGet's lock mode, because a `packages.lock.json` records no
-download URL.
+dotnet-purifier keeps .NET's development workflow on locked,
+Nix-resolved dependencies. Use the normal build and test commands in your
+working tree; building the project itself in the Nix sandbox is an
+optional next step.
+
+It follows the [purifier contract](https://github.com/nix-purifiers/purifier/blob/main/CONTRACT.md).
+
+## Installation
+
+Install the integration into your Nix profile once:
+
+```sh
+nix profile install 'github:nix-purifiers/dotnet-purifier'
+```
+
+The required wrapper is `dotnet-purifier dotnet`; pass your usual tool
+arguments after it. With no purifier lockfile, it warns on standard error
+and runs the ordinary tool with impure resolution.
+
+`nix shell` makes an integration available temporarily instead of installing
+it. Keep using the activation steps below where a project environment or
+prefetched cache is required.
 
 ## Quickstart
 
-In the root of a .NET build (the directory with your solution, or with the
-project files below it), lock the build:
+Install Nix, then run the following from your existing project's root.
+The setup prepares the locked dependencies and the integration that
+.NET's normal commands use:
 
 ```zsh
 nix run github:nix-purifiers/dotnet-purifier -- lock
+nix run github:nix-purifiers/dotnet-purifier -- dotnet build
+nix run github:nix-purifiers/dotnet-purifier -- dotnet test
 ```
 
-Commit `dotnet-purifier.lock.json`, together with any `packages.lock.json`
-files of your projects. We recommend committing both lockfiles, and the
-builder and the commands look for them in the repository by default. Then
-build the project with Nix from the same directory. The build needs no Nix
-file in the project:
+Commit the lockfiles that the lock command writes, including the build
+tool's own lockfile when it has one. Keep using the project's usual build,
+test and editor commands with this setup. Nix provides the locked
+dependencies; the development commands above run outside the Nix sandbox.
+No project Nix files are needed for this workflow.
+
+Sandboxed builds of the whole project are an optional
+[next step](#building-the-project-with-nix).
+
+## Development loop
+
+Run `dotnet` through the purifier, with the locked packages:
 
 ```zsh
-nix build --impure --expr '
-  let
-    purifier = builtins.getFlake "github:nix-purifiers/dotnet-purifier";
-    pkgs = import purifier.inputs.nixpkgs {
-      system = builtins.currentSystem;
-      overlays = [ purifier.overlays.default ];
-    };
-  in
-  (pkgs.dotnet-purifier.buildDotnetProject { src = ./.; }).packages.App'
+nix run github:nix-purifiers/dotnet-purifier -- dotnet build
+nix run github:nix-purifiers/dotnet-purifier -- dotnet test
+nix run github:nix-purifiers/dotnet-purifier -- dotnet run --project src/App
 ```
 
-This uses the purifier's pinned nixpkgs, matching the lock command above.
-To build with ambient `<nixpkgs>` from your Nix search path instead,
-replace `import purifier.inputs.nixpkgs` with `import <nixpkgs>`.
-Both forms need no Nix files in your project. The build tool and language
-versions must match the lockfile; with ambient nixpkgs, lock with the
-purifier from that package set or pass a compatible toolchain to the builder.
+Every restore reads only the locked packages, with the locked SDK and the
+runtime of every target framework of the build, so `dotnet test` runs each
+framework's tests. `dotnet tool restore` and `dotnet workload restore` read
+the locked packages too.
+
+To add or upgrade a package, edit the project file, or use the SDK's own
+commands with the network, then relock:
+
+```zsh
+nix run github:nix-purifiers/dotnet-purifier -- update               # every package
+nix run github:nix-purifiers/dotnet-purifier -- update Newtonsoft.Json
+nix run github:nix-purifiers/dotnet-purifier -- lock                 # after editing a project file
+```
+
+`update` runs `dotnet package update` on each project, refreshes any
+`packages.lock.json`, and relocks. `lock` keeps the versions the project
+files name, and a project in NuGet's lock mode keeps the resolution its
+`packages.lock.json` records. Where that file is missing or no longer
+matches the project, `lock` writes it.
+
+For an external build, every command takes `--lockfile <path>`, and the
+environment variable `DOTNET_PURIFIER_LOCKFILE` names it too. The option
+`--tool-lockfile <directory>`, or the variable
+`DOTNET_PURIFIER_TOOL_LOCKFILE`, names the directory of the
+`packages.lock.json` files. With either, `lock` and `update` write NuGet's
+lockfiles there and leave the files in the tree as they are. A lock into a
+directory that does not exist yet starts from the files in the tree. The
+dev shell of the flake that calls the builder can set both variables to
+the paths it passes to the builder.
+
+dotnet-purifier is a command that runs the SDK, rather than an MSBuild
+plugin. A lock run controls the NuGet package folder, the SDK and the
+workloads of every restore and build it starts, and the development loop
+runs `dotnet` through the same command.
+
+To publish the packages Nix built:
+
+```zsh
+nix run github:nix-purifiers/dotnet-purifier -- publish --source https://api.nuget.org/v3/index.json --api-key "$NUGET_API_KEY"
+```
+
+## Building the project with Nix
+
+Once the native development workflow is working, you can also build and
+test the whole project in the Nix sandbox. For this step, keep a flake or
+another Nix build definition in the project's repository, or maintain an
+external packaging repository that points at its sources and lockfiles.
+The builder consumes the same lockfiles as the development workflow.
 
 This builds the project in `App.csproj`. Each project is named after its
 project file. The overlay `overlays.default` adds one attribute to a
@@ -111,56 +171,29 @@ replaces any of it, and `dotnet-purifier.overrideScope` replaces what the
 whole scope shares. `lib.dotnet-purifier.readLock { src, lockFile,
 packagesLock }` reads the lock in the shape every purifier shares.
 
-## Development loop
+### One-off builds without a project Nix file
 
-Run `dotnet` through the purifier, with the locked packages:
-
-```zsh
-nix run github:nix-purifiers/dotnet-purifier -- dotnet build
-nix run github:nix-purifiers/dotnet-purifier -- dotnet test
-nix run github:nix-purifiers/dotnet-purifier -- dotnet run --project src/App
-```
-
-Every restore reads only the locked packages, with the locked SDK and the
-runtime of every target framework of the build, so `dotnet test` runs each
-framework's tests. `dotnet tool restore` and `dotnet workload restore` read
-the locked packages too.
-
-To add or upgrade a package, edit the project file, or use the SDK's own
-commands with the network, then relock:
+For an ad hoc build, the builder can also be evaluated directly from the
+project root. Replace the example package name with one from your project:
 
 ```zsh
-nix run github:nix-purifiers/dotnet-purifier -- update               # every package
-nix run github:nix-purifiers/dotnet-purifier -- update Newtonsoft.Json
-nix run github:nix-purifiers/dotnet-purifier -- lock                 # after editing a project file
+nix build --impure --expr '
+  let
+    purifier = builtins.getFlake "github:nix-purifiers/dotnet-purifier";
+    pkgs = import purifier.inputs.nixpkgs {
+      system = builtins.currentSystem;
+      overlays = [ purifier.overlays.default ];
+    };
+  in
+  (pkgs.dotnet-purifier.buildDotnetProject { src = ./.; }).packages.App'
 ```
 
-`update` runs `dotnet package update` on each project, refreshes any
-`packages.lock.json`, and relocks. `lock` keeps the versions the project
-files name, and a project in NuGet's lock mode keeps the resolution its
-`packages.lock.json` records. Where that file is missing or no longer
-matches the project, `lock` writes it.
-
-For an external build, every command takes `--lockfile <path>`, and the
-environment variable `DOTNET_PURIFIER_LOCKFILE` names it too. The option
-`--tool-lockfile <directory>`, or the variable
-`DOTNET_PURIFIER_TOOL_LOCKFILE`, names the directory of the
-`packages.lock.json` files. With either, `lock` and `update` write NuGet's
-lockfiles there and leave the files in the tree as they are. A lock into a
-directory that does not exist yet starts from the files in the tree. The
-dev shell of the flake that calls the builder can set both variables to
-the paths it passes to the builder.
-
-dotnet-purifier is a command that runs the SDK, rather than an MSBuild
-plugin. A lock run controls the NuGet package folder, the SDK and the
-workloads of every restore and build it starts, and the development loop
-runs `dotnet` through the same command.
-
-To publish the packages Nix built:
-
-```zsh
-nix run github:nix-purifiers/dotnet-purifier -- publish --source https://api.nuget.org/v3/index.json --api-key "$NUGET_API_KEY"
-```
+This uses the purifier's pinned nixpkgs, matching the lock command above.
+To build with ambient `<nixpkgs>` from your Nix search path instead,
+replace `import purifier.inputs.nixpkgs` with `import <nixpkgs>`.
+Both forms need no Nix files in your project. The build tool and language
+versions must match the lockfile; with ambient nixpkgs, lock with the
+purifier from that package set or pass a compatible toolchain to the builder.
 
 ## Working offline
 
@@ -242,6 +275,11 @@ that major version from your nixpkgs, warning when the patch version
 differs. Workload tools run interactively on NixOS with `programs.nix-ld`.
 
 ## Examples
+
+For day-to-day work on these projects, use the native-tool setup and
+commands in [Quickstart](#quickstart) and [Development loop](#development-loop).
+The Nix expressions below show optional sandboxed packaging of those
+projects.
 
 [FluentValidation](https://github.com/FluentValidation/FluentValidation) is
 a .NET validation library with a solution of packable libraries, a

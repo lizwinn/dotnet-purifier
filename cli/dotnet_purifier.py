@@ -991,6 +991,13 @@ def walk_all(root, name):
 def run_dotnet(args):
     """Runs dotnet with the locked packages, from the last prefetch, or
     from a new one when the last prefetch was of another lock."""
+    root = Path.cwd()
+    if not lock_path(root).exists():
+        info('warning: no dotnet-purifier.lock.json found; running dotnet impurely. Run `dotnet-purifier lock` to use Nix-resolved dependencies.')
+        dotnet = os.environ.get("DOTNET_PURIFIER_DOTNET") or shutil.which("dotnet")
+        if not dotnet:
+            dotnet = f"{sdk(sdk_major(root))}/bin/dotnet"
+        os.execvp(dotnet, [dotnet, *args])
     root = build_root()
     data = read_lock(root)
     state = state_dir(root)
