@@ -177,22 +177,22 @@ Other limits: a lock is made with the nixpkgs SDK of the major version
 that major version from your nixpkgs, warning when the patch version
 differs. Workload tools run interactively on NixOS with `programs.nix-ld`.
 
-## Real-world projects
+## Examples
 
-- [FluentValidation](https://github.com/FluentValidation/FluentValidation)
-  at `f95dbd5c8166a10e38f7a8bca4d752abd641a453`: its two packages, its
-  benchmark executable and its 890 tests on net8.0, net9.0 and net10.0 build
-  in CI from the lockfile in `tests/real-world/fluentvalidation`, kept
-  outside its source. The lock run takes about four minutes. Trying it
-  found two gaps, now fixed: test projects are recognized only after a
-  restore, since `Microsoft.NET.Test.Sdk` sets `IsTestProject`; and a test
-  project that targets several frameworks needs the runtime of each.
-- The fixtures in `tests/fixtures`: `multi` (an executable, a
-  multi-targeted packable library, xunit tests and NuGet's lock mode),
-  `sources` (every package source, a self-contained executable, an ASP.NET
-  Core executable and a build that runs a local tool), `workloads` (a
-  WebAssembly executable relinked with Emscripten) and `update` (an old
-  pin for `update` to move).
+CI locks and builds
+[FluentValidation](https://github.com/FluentValidation/FluentValidation) at
+commit `f95dbd5c8166a10e38f7a8bca4d752abd641a453`, from the lockfile in
+`tests/real-world/fluentvalidation`, which lives outside the project's
+source. The build makes its packages and its benchmark executable, and runs
+its test suite on net8.0, net9.0 and net10.0. Its lock run takes about four
+minutes.
+
+The fixtures in `tests/fixtures` show the other kinds of build: `multi` has
+an executable, a multi-targeted packable library, xunit tests and NuGet's
+lock mode; `sources` takes packages from every kind of source and has a
+self-contained executable, an ASP.NET Core executable and a build that runs
+a local tool; `workloads` is a WebAssembly executable relinked with
+Emscripten; and `update` has an old pin for `update` to move.
 
 `nix flake check` runs the unit tests of the lock tool, builds every fixture
 and FluentValidation, and runs the conformance checks of the purifier
