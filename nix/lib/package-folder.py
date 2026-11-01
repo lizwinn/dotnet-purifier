@@ -12,6 +12,8 @@ package with these files as installed, and the folder is also a feed that
 a restore reads.
 """
 
+import base64
+import hashlib
 import json
 import shutil
 import sys
@@ -24,9 +26,26 @@ from pathlib import Path
 SKIPPED = ("[Content_Types].xml", "_rels/", "package/")
 
 
+def sha512_sri(path):
+    digest = hashlib.sha512()
+    with open(path, "rb") as f:
+        for block in iter(lambda: f.read(1 << 20), b""):
+            digest.update(block)
+    return "sha512-" + base64.b64encode(digest.digest()).decode()
+
+
 def install(package, out):
     path = Path(package["path"])
     package_id = path.parts[0]
+    # Nix checked the downloads when it fetched them. A package of a folder
+    # feed in the build or of the SDK's feed is checked here.
+    found = sha512_sri(package["file"])
+    if found != package["hash"]:
+        sys.exit(
+            f"dotnet-purifier: {package['file']} has the hash {found}, and the lock records "
+            f"{package['hash']}: the package changed since `dotnet-purifier lock` ran. Run "
+            "`dotnet-purifier lock` at the build root and commit the lockfile."
+        )
     directory = out / path.parent
     directory.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(package["file"], out / path)

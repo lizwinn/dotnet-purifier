@@ -9,7 +9,7 @@
     "src/Greeter/Greeter.csproj",
     "test/Greeter.Tests/Greeter.Tests.csproj"
   ],
-  "definitionHash": "sha256-fp/Xsi+vzRNDShvqrSG+jmf8x28AHPq7q14u4Txo41Q=",
+  "definitionHash": "sha256-emVw8rQ9LtnfYdeCKc9evVwQtsPub+QmMoG6+AHUy18=",
   "tools": false,
   "workloads": [],
   "projects": [

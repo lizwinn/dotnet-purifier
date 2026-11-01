@@ -69,9 +69,23 @@
   # `filter` of builtins.path. The default leaves out build outputs,
   # version control, the purifier's state and Nix result links.
   srcFilter ? null,
+  # Builds with a lock that no longer matches the build definition, rather
+  # than failing evaluation. A restore that asks for a package the lock
+  # does not hold still fails.
+  allowStaleLock ? false,
 }:
 let
-  lock = import ./lock.nix { inherit lib lockFile; };
+  readLock = import ./lock.nix { inherit lib lockFile; };
+  current =
+    import ./definition.nix {
+      inherit lib src;
+      inherit (readLock) targets;
+    } == readLock.definitionHash;
+  lock =
+    if current || allowStaleLock then
+      readLock
+    else
+      throw "dotnet-purifier: ${toString lockFile} does not match the build: a project, solution, .props or .targets file, a NuGet configuration, global.json, the tool manifest or a package of a folder feed changed since `dotnet-purifier lock` ran. Run `dotnet-purifier lock` at the build root and commit the lockfile, or pass `allowStaleLock = true` to build anyway.";
 
   lockedSdk = dotnetCorePackages."sdk_${toString lock.sdk.major}_0";
   sdk =
@@ -158,6 +172,15 @@ let
   # packages rather than from the packs the SDK ships for the machine it
   # runs on. The targeting packs are the same on every machine.
   dotnetSetup = ''
+    # Every dotnet command says, when it fails, what a failure to find a
+    # package means here.
+    dotnet() {
+      command dotnet "$@" || {
+        local status=$?
+        echo "dotnet-purifier: \`dotnet $1\` failed. If NuGet could not find a package (NU1101, NU1102 or NU1103), the build asks for a package that ${baseNameOf (toString lockFile)} does not hold: run \`dotnet-purifier lock\` at the build root and commit the lockfile." >&2
+        return $status
+      }
+    }
     export HOME="$TMPDIR/home"
     export DOTNET_CLI_HOME="$HOME"
     export XDG_RUNTIME_DIR="$TMPDIR/run"

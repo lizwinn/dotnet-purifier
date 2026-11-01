@@ -117,14 +117,29 @@ def sha512_sri(path):
     return "sha512-" + base64.b64encode(digest.digest()).decode()
 
 
-def definition_hash(root, targets):
-    digest = hashlib.sha256()
-    digest.update(json.dumps(targets).encode())
+def definition_files(root):
+    """The files below root that define what a restore installs, as paths
+    relative to root in sorted order. Symbolic links are left out."""
+    files = []
     for path in walk(root):
+        if path.is_symlink():
+            continue
         if path.name.lower() in DEFINITION_NAMES or path.suffix.lower() in DEFINITION_SUFFIXES:
-            digest.update(str(path.relative_to(root)).encode() + b"\0")
-            digest.update(path.read_bytes() + b"\0")
-    return "sha256-" + base64.b64encode(digest.digest()).decode()
+            files.append(path.relative_to(root).as_posix())
+    return sorted(files)
+
+
+def definition_hash(root, targets):
+    """The SRI SHA-256 of the build definition: of a text whose first line
+    is the targets as JSON and whose other lines are each definition file's
+    path and the hex SHA-256 of its content, separated by a tab.
+    nix/lib/definition.nix computes the same hash at evaluation time, so
+    a Nix build knows when the lock is stale."""
+    lines = [json.dumps(targets, separators=(",", ":"), ensure_ascii=False)]
+    for relative in definition_files(root):
+        lines.append(f"{relative}\t{hashlib.sha256((root / relative).read_bytes()).hexdigest()}")
+    text = "\n".join(lines) + "\n"
+    return "sha256-" + base64.b64encode(hashlib.sha256(text.encode()).digest()).decode()
 
 
 def sdk_major(root):

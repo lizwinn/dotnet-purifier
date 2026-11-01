@@ -30,6 +30,71 @@ let
   # the wasm-tools workload.
   workloads = buildDotnetProject { src = ./fixtures/workloads; };
 
+  # Variants of the multi fixture's lockfile, each with one common mistake.
+  multiLock = lib.importJSON ./fixtures/multi/dotnet-purifier.lock.json;
+  sourcesLock = lib.importJSON ./fixtures/sources/dotnet-purifier.lock.json;
+  lockWith =
+    name: lock: changes:
+    builtins.toFile "${name}.lock.json" (builtins.toJSON (lock // changes));
+  multiWith =
+    name: changes: args:
+    buildDotnetProject (
+      {
+        src = ./fixtures/multi;
+        lockFile = lockWith name multiLock changes;
+      }
+      // args
+    );
+
+  # The build definition changed since the lock was made.
+  stale = multiWith "stale" {
+    definitionHash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+  } { };
+  staleAllowed = multiWith "stale" {
+    definitionHash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+  } { allowStaleLock = true; };
+  # A lockfile of another format, and one that lacks a field.
+  otherFormat = multiWith "other-format" { version = 2; } { };
+  malformed = buildDotnetProject {
+    src = ./fixtures/multi;
+    lockFile = builtins.toFile "malformed.lock.json" (
+      builtins.toJSON (removeAttrs multiLock [ "artifacts" ])
+    );
+  };
+  # The lock lacks a package the build needs: Humanizer.Core, which the
+  # Greeter library references.
+  missing = multiWith "missing" {
+    artifacts = lib.filter (a: !(lib.hasPrefix "humanizer.core/" a.path)) multiLock.artifacts;
+  } { };
+  # The package of the folder feed in the build differs from the one the
+  # lock records.
+  tampered = buildDotnetProject {
+    src = ./fixtures/sources;
+    lockFile = lockWith "tampered" sourcesLock {
+      localPackages = map (
+        p: p // { hash = (builtins.head multiLock.artifacts).hash; }
+      ) sourcesLock.localPackages;
+    };
+  };
+
+  # True when evaluating the package names of a build fails, as a throw.
+  evaluationFails =
+    build: !(builtins.tryEval (builtins.deepSeq (builtins.attrNames build.packages) true)).success;
+
+  # A check that passes when `condition` holds and fails evaluation with
+  # `message` otherwise.
+  expect =
+    name: condition: message:
+    if condition then pkgs.runCommand name { } "touch $out" else throw "${name}: ${message}";
+
+  # A check that the build of `drv` fails, with `text` in its log.
+  failsWith =
+    name: drv: text:
+    pkgs.runCommand name { failure = pkgs.testers.testBuildFailure drv; } ''
+      grep -F ${lib.escapeShellArg text} "$failure/testBuildFailure.log"
+      touch "$out"
+    '';
+
   # Fails unless command $1 prints $2.
   prints =
     name: command: expected:
@@ -43,6 +108,40 @@ let
     '';
 in
 {
+  # The lock tool's parsing and path logic.
+  unit-tests =
+    pkgs.runCommand "unit-tests"
+      {
+        nativeBuildInputs = [ pkgs.python3 ];
+        DOTNET_PURIFIER_CLI = ../cli/dotnet_purifier.py;
+      }
+      ''
+        python3 -m unittest discover -s ${./unit} -v
+        touch "$out"
+      '';
+
+  # A stale lock fails evaluation, unless the build allows it.
+  stale-lock-fails = expect "stale-lock-fails" (evaluationFails stale) "a stale lock evaluated";
+  stale-lock-allowed = staleAllowed.packages.App;
+
+  # A lockfile of another format or without a field fails evaluation.
+  other-format-fails =
+    expect "other-format-fails" (evaluationFails otherFormat)
+      "a lockfile of format 2 evaluated";
+  malformed-lock-fails =
+    expect "malformed-lock-fails" (evaluationFails malformed)
+      "a lockfile without artifacts evaluated";
+
+  # A package missing from the lock fails the build, which says what to run.
+  missing-package-fails =
+    failsWith "missing-package-fails" missing.packages.Greeter
+      "does not hold: run `dotnet-purifier lock`";
+
+  # A package of a folder feed that changed since the lock fails the build.
+  tampered-package-fails =
+    failsWith "tampered-package-fails" tampered.packageFolder
+      "the package changed since `dotnet-purifier lock` ran";
+
   multi-app = multi.packages.App;
   multi-greeter = multi.packages.Greeter;
   multi-tests = multi.tests."Greeter.Tests";

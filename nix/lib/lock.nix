@@ -36,15 +36,31 @@
 let
   lock = lib.importJSON lockFile;
   formatVersion = 1;
+  fields = [
+    "sdk"
+    "targets"
+    "definitionHash"
+    "tools"
+    "workloads"
+    "projects"
+    "artifacts"
+    "localPackages"
+    "sdkPackages"
+  ];
+  missing = lib.filter (field: !(lock ? ${field})) fields;
 in
 if (lock.version or null) != formatVersion then
   throw "dotnet-purifier: ${toString lockFile} has format ${
     toString (lock.version or "unknown")
   }; this dotnet-purifier reads format ${toString formatVersion}. Run `dotnet-purifier lock --force` to write it."
+else if missing != [ ] then
+  throw "dotnet-purifier: ${toString lockFile} lacks ${lib.concatStringsSep ", " missing}, so it is not a lockfile `dotnet-purifier lock` wrote. Run `dotnet-purifier lock --force` to write it."
 else
   {
     inherit (lock)
       sdk
+      targets
+      definitionHash
       tools
       workloads
       projects

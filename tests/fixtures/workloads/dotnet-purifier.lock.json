@@ -7,7 +7,7 @@
   "targets": [
     "src/Wasm/Wasm.csproj"
   ],
-  "definitionHash": "sha256-u0e52aQbFSMRwtdpfKitRZfqn3ec0+FPt5DFo8HNclw=",
+  "definitionHash": "sha256-sYpB0Uh6vus+ZiXpDg5/Lu1oNXG9/mCrm90GUsrwG1s=",
   "tools": false,
   "workloads": [
     "wasm-tools"

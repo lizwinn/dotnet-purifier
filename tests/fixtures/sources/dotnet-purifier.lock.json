@@ -9,7 +9,7 @@
     "src/Standalone/Standalone.csproj",
     "src/Web/Web.csproj"
   ],
-  "definitionHash": "sha256-7O8/8qLwT0/QbIaCq0mErTcaqlP4reNslQXBDvILkBI=",
+  "definitionHash": "sha256-niY1JvLfbcb4B5DliVm0l3UN4IAFOt+XM9rmnZHD1v4=",
   "tools": true,
   "workloads": [],
   "projects": [
