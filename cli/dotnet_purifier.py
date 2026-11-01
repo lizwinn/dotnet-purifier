@@ -209,7 +209,13 @@ def nixpkgs_expr():
 def sdk(major):
     """The nixpkgs .NET SDK of a major version, which a Nix build of the
     lockfile uses too."""
-    return nix_build(f"{nixpkgs_expr()}.dotnetCorePackages.sdk_{major}_0.out")[0]
+    # nix build realizes every output in the package's outputsToInstall,
+    # the SDK's man pages among them, and prints them in no fixed order.
+    outputs = nix_build(f"{nixpkgs_expr()}.dotnetCorePackages.sdk_{major}_0")
+    for output in outputs:
+        if (Path(output) / "bin" / "dotnet").exists():
+            return output
+    fail(f"the .NET SDK {major} that nixpkgs built has no bin/dotnet")
 
 
 def with_sdk_on_path(env, dotnet):
@@ -822,8 +828,12 @@ def prefetch_paths(root, data):
     state.mkdir(exist_ok=True)
     paths = {
         name: nix_build(interactive_expr(root, name), out_link=state / link)[0]
-        for name, link in [("packageFolder", "packages"), ("sdk", "sdk"), ("runtimeLibraries", "runtime-libraries")]
+        for name, link in [("packageFolder", "packages"), ("runtimeLibraries", "runtime-libraries")]
     }
+    # The SDK has a man output too, which nix build prints in no fixed
+    # order beside the one with bin/dotnet.
+    sdk_outputs = nix_build(interactive_expr(root, "sdk"), out_link=state / "sdk")
+    paths["sdk"] = next((p for p in sdk_outputs if (Path(p) / "bin" / "dotnet").exists()), sdk_outputs[0])
     env = everyday_env(state, paths)
     dotnet = f"{paths['sdk']}/bin/dotnet"
     install(paths["packageFolder"], user_package_folder(env))
