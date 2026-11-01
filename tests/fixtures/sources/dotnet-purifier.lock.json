@@ -82,6 +82,12 @@
       "hash": "sha512-marboyLlJImvCxgZ1N7xSAS4cEIQTkNucabiKQXOJs2zV97NphKMWO9GL8v8/rwXyJgtWqgzZhhMSg51luIHzA=="
     },
     {
+      "path": "microsoft.netcore.app.host.linux-arm64/10.0.14/microsoft.netcore.app.host.linux-arm64.10.0.14.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/microsoft.netcore.app.host.linux-arm64/10.0.14/microsoft.netcore.app.host.linux-arm64.10.0.14.nupkg",
+      "mirrors": [],
+      "hash": "sha512-MU2CWnkhpol8sJXzZ9IqxVQLjHy9cqHQahlI91BH9mbCoV6uRpN6q0Mj5pJLN9qT+LyAhrMhpari229D8QG5hQ=="
+    },
+    {
       "path": "microsoft.netcore.app.host.linux-x64/10.0.14/microsoft.netcore.app.host.linux-x64.10.0.14.nupkg",
       "url": "https://api.nuget.org/v3-flatcontainer/microsoft.netcore.app.host.linux-x64/10.0.14/microsoft.netcore.app.host.linux-x64.10.0.14.nupkg",
       "mirrors": [],
@@ -108,5 +114,5 @@
     }
   ],
   "sdkPackages": [],
-  "contentHash": "sha256-8AH9qX57wU8YAW7OVIl7utLCIHOe6/31WBqPCyX/haM="
+  "contentHash": "sha256-TX8DqGTMCvjk2l3z57JDgLgmW5OUPJnlBOjz0Kt24Wc="
 }

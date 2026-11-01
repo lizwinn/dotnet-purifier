@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "sdk": {
+    "version": "10.0.403",
+    "major": 10
+  },
+  "targets": [
+    "App/App.csproj"
+  ],
+  "definitionHash": "sha256-z1TccbbARbfJOKN43Pgm0QsBeV2MkhXSbHPtCZ6noiI=",
+  "tools": false,
+  "workloads": [],
+  "projects": [
+    {
+      "name": "App",
+      "path": "App/App.csproj",
+      "kind": "exe",
+      "assemblyName": "App",
+      "targetFrameworks": [
+        "net10.0"
+      ],
+      "frameworkReferences": [
+        "Microsoft.NETCore.App"
+      ],
+      "selfContained": false,
+      "runtimeIdentifier": "",
+      "artifacts": [
+        "bin/App"
+      ]
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "microsoft.netcore.app.host.linux-arm64/10.0.14/microsoft.netcore.app.host.linux-arm64.10.0.14.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/microsoft.netcore.app.host.linux-arm64/10.0.14/microsoft.netcore.app.host.linux-arm64.10.0.14.nupkg",
+      "mirrors": [],
+      "hash": "sha512-MU2CWnkhpol8sJXzZ9IqxVQLjHy9cqHQahlI91BH9mbCoV6uRpN6q0Mj5pJLN9qT+LyAhrMhpari229D8QG5hQ=="
+    },
+    {
+      "path": "microsoft.netcore.app.host.linux-x64/10.0.14/microsoft.netcore.app.host.linux-x64.10.0.14.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/microsoft.netcore.app.host.linux-x64/10.0.14/microsoft.netcore.app.host.linux-x64.10.0.14.nupkg",
+      "mirrors": [],
+      "hash": "sha512-LqyCvEWkMshyGeeZ1y1KraQ6czMsISLmMB5VKDT4addsZysxjlMC7WbCryVokdAO7juS8htBOZ3+KaDY5FQ6FA=="
+    },
+    {
+      "path": "newtonsoft.json/12.0.3/newtonsoft.json.12.0.3.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/newtonsoft.json/12.0.3/newtonsoft.json.12.0.3.nupkg",
+      "mirrors": [],
+      "hash": "sha512-aTRmXwR5xYu+mWxE8r8W1DWnL02SeV8LwdQMsLwTWP8OZgrCCyTqvOAe5hRb1VNQYXjln7qr0PKpSyO/pcc19Q=="
+    }
+  ],
+  "localPackages": [],
+  "sdkPackages": [],
+  "contentHash": "sha256-fZkok9J9kgu+iEib+2xNfMllqAaImUDCl+MbOU4eU3s="
+}

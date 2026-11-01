@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: MIT
 #
-# `nix flake check` on both machines the purifier targets, and a relock of
-# every fixture that must reproduce the committed lockfile byte for byte.
-# The relock runs on both machines too, since one lock serves both.
+# `nix flake check` on both machines the purifier targets, and the
+# conformance checks of the purifier contract that need the network or a
+# second build, each on both machines.
 name: check
 
 on:
@@ -23,19 +23,108 @@ jobs:
       - uses: cachix/install-nix-action@v31
       - run: nix flake check -L --max-jobs 2
 
-  relock:
+  # Relocking a fixture reproduces its lockfile byte for byte. The
+  # real-world project is locked from its pinned source, into the lockfile
+  # kept in this repository.
+  conformance-relock:
     strategy:
       fail-fast: false
       matrix:
         runner: [ubuntu-24.04, ubuntu-24.04-arm]
-        fixture: [multi, sources, workloads]
+        fixture: [multi, sources, workloads, update, real-world/fluentvalidation]
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: cachix/install-nix-action@v31
       - name: Relock ${{ matrix.fixture }}
-        working-directory: tests/fixtures/${{ matrix.fixture }}
-        run: nix run "$GITHUB_WORKSPACE#default" -- lock --force
+        run: |
+          lockfile="$GITHUB_WORKSPACE/tests/fixtures/${{ matrix.fixture }}/dotnet-purifier.lock.json"
+          if [ "${{ matrix.fixture }}" = real-world/fluentvalidation ]; then
+            lockfile="$GITHUB_WORKSPACE/tests/real-world/fluentvalidation/dotnet-purifier.lock.json"
+            src="$(nix build --no-link --print-out-paths --impure --expr '
+              (import (builtins.getFlake "path:'"$GITHUB_WORKSPACE"'").inputs.nixpkgs { }).fetchFromGitHub {
+                owner = "FluentValidation";
+                repo = "FluentValidation";
+                rev = "f95dbd5c8166a10e38f7a8bca4d752abd641a453";
+                hash = "sha256-HNc7HxW4gLvOVVSY6yo3+NEOjNsIojemcj1dZ/KZhUM=";
+              }')"
+            cp -r "$src" "$RUNNER_TEMP/project"
+            chmod -R u+w "$RUNNER_TEMP/project"
+            cd "$RUNNER_TEMP/project"
+          else
+            cd "tests/fixtures/${{ matrix.fixture }}"
+          fi
+          nix run "$GITHUB_WORKSPACE#default" -- lock --force --lockfile "$lockfile"
       - name: The lockfile is unchanged
-        run: git diff --exit-code -- tests/fixtures/${{ matrix.fixture }}/dotnet-purifier.lock.json
+        run: git diff --exit-code -- tests
+
+  # A rebuild of a fixture gives the same output.
+  conformance-rebuild:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-24.04, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v31
+      - run: |
+          system="$(nix eval --raw --impure --expr builtins.currentSystem)"
+          for check in multi-app multi-greeter sources-web; do
+            nix build --no-link -L ".#checks.$system.$check"
+            nix build --no-link --rebuild ".#checks.$system.$check"
+          done
+
+  # After a prefetch, the everyday loop of a fixture works with no network:
+  # its build and its tests run in a network namespace of their own.
+  conformance-offline:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-24.04, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v31
+      - name: Prefetch
+        working-directory: tests/fixtures/multi
+        run: |
+          nix build --out-link "$RUNNER_TEMP/cli" "$GITHUB_WORKSPACE#default"
+          "$RUNNER_TEMP/cli/bin/dotnet-purifier" prefetch
+      # The namespace has only a loopback interface, which `dotnet test`
+      # needs to reach its test host.
+      - name: Build and test with no network
+        working-directory: tests/fixtures/multi
+        run: |
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          offline() {
+            unshare --net --map-root-user -- sh -c 'ip link set lo up && exec "$@"' sh "$@"
+          }
+          offline "$RUNNER_TEMP/cli/bin/dotnet-purifier" dotnet build src/App
+          offline "$RUNNER_TEMP/cli/bin/dotnet-purifier" dotnet test test/Greeter.Tests
+
+  # `update` moves a fixture that pins an old version to the newest one,
+  # and both lockfiles then match the project.
+  conformance-update:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-24.04, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v31
+      - working-directory: tests/fixtures/update
+        run: |
+          nix build --out-link "$RUNNER_TEMP/cli" "$GITHUB_WORKSPACE#default"
+          cli="$RUNNER_TEMP/cli/bin/dotnet-purifier"
+          "$cli" update
+          ! grep -q 'Version="12.0.3"' App/App.csproj
+          cp dotnet-purifier.lock.json "$RUNNER_TEMP/updated.lock.json"
+          "$cli" lock
+          cmp dotnet-purifier.lock.json "$RUNNER_TEMP/updated.lock.json"
+          "$cli" dotnet restore App --locked-mode

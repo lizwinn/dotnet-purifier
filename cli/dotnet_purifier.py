@@ -9,6 +9,11 @@
       lock is renewed only when the build definition changed, unless
       --force is given.
 
+  dotnet-purifier update [PACKAGE...]
+      Updates the build's package references, every package or the named
+      ones, with the SDK's own `dotnet package update`, and relocks. `lock`
+      keeps the versions the project files name.
+
   dotnet-purifier prefetch
       Realizes what the everyday loop and an editor need, with garbage
       collector roots under .dotnet-purifier/: the locked packages, which
@@ -628,7 +633,10 @@ def lock(args):
             for command in build_commands(project):
                 run(dotnet, [*(a.replace("{out}", str(out)) for a in command), *LOCK_RUN_SWITCHES], build, env)
             project["artifacts"] = artifacts_of(project, out)
-            restore = [a for a in build_commands(project)[0][1:] if a not in ("-o", "{out}")]
+            # The restores for the other machines leave UseAppHost as the
+            # project sets it, so the lock also holds the host packs that a
+            # developer's own `dotnet build` uses, on every machine.
+            restore = [a for a in build_commands(project)[0][1:] if a not in ("-o", "{out}", NO_APPHOST)]
             if "-f" in restore:
                 i = restore.index("-f")
                 del restore[i : i + 2]
@@ -896,6 +904,27 @@ def run_dotnet(args):
     sys.exit(result.returncode)
 
 
+def update(args):
+    """Updates the build's package references with the SDK's own
+    `dotnet package update`, every package or the named ones, in the build
+    itself and with the network, then relocks against the result."""
+    root = build_root()
+    path = lock_path(root)
+    targets = json.loads(path.read_text()).get("targets") if path.is_file() else None
+    targets = targets or default_targets(root)
+    dotnet = f"{sdk(sdk_major(root))}/bin/dotnet"
+    env = with_sdk_on_path(dict(os.environ), dotnet)
+    env["DOTNET_CLI_WORKLOAD_UPDATE_NOTIFY_DISABLE"] = "true"
+    for target in targets:
+        run(dotnet, ["package", "update", *args, "--project", target], root, env)
+    # A project in NuGet's lock mode records the new versions in its
+    # packages.lock.json only when a restore evaluates it again.
+    if any(Path(f).name.lower() == "packages.lock.json" for f in definition_files(root)):
+        for target in targets:
+            run(dotnet, ["restore", target, "--force-evaluate", *LOCK_RUN_SWITCHES], root, env)
+    lock(["--force", *targets])
+
+
 def publish(args):
     """Uploads the release that Nix built: the packages of the packable
     projects, with `dotnet nuget push` and the given arguments."""
@@ -921,7 +950,7 @@ def main():
             fail("--lockfile takes a path")
         LOCK_OVERRIDE = Path(args[i + 1]).resolve()
         del args[i : i + 2]
-    commands = {"lock": lock, "prefetch": prefetch, "publish": publish, "dotnet": run_dotnet}
+    commands = {"lock": lock, "update": update, "prefetch": prefetch, "publish": publish, "dotnet": run_dotnet}
     if not args or args[0] not in commands:
         print(__doc__, file=sys.stderr)
         sys.exit(2)
