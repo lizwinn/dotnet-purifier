@@ -37,9 +37,10 @@ For persistent use, add these packages through your usual Nix configuration.
 Run `dotnet` through the purifier, with the locked packages:
 
 ```zsh
-nix run github:nix-purifiers/dotnet-purifier -- dotnet build
-nix run github:nix-purifiers/dotnet-purifier -- dotnet test
-nix run github:nix-purifiers/dotnet-purifier -- dotnet run \
+nix shell 'github:nix-purifiers/dotnet-purifier'
+dotnet-purifier dotnet build
+dotnet-purifier dotnet test
+dotnet-purifier dotnet run \
   --project src/App
 ```
 
@@ -52,12 +53,13 @@ To add or upgrade a package, edit the project file, or use the SDK's own
 commands with the network, then relock:
 
 ```zsh
+nix shell 'github:nix-purifiers/dotnet-purifier'
 # every package
-nix run github:nix-purifiers/dotnet-purifier -- update
-nix run github:nix-purifiers/dotnet-purifier -- update \
+dotnet-purifier update
+dotnet-purifier update \
   Newtonsoft.Json
 # after editing a project file
-nix run github:nix-purifiers/dotnet-purifier -- lock
+dotnet-purifier lock
 ```
 
 `update` runs `dotnet package update` on each project, refreshes any
@@ -84,7 +86,8 @@ runs `dotnet` through the same command.
 To publish the packages Nix built:
 
 ```zsh
-nix run github:nix-purifiers/dotnet-purifier -- publish \
+nix shell 'github:nix-purifiers/dotnet-purifier'
+dotnet-purifier publish \
   --source https://api.nuget.org/v3/index.json --api-key \
   "$NUGET_API_KEY"
 ```
@@ -193,7 +196,8 @@ purifier from that package set or pass a compatible toolchain to the builder.
 ## Working offline
 
 ```zsh
-nix run github:nix-purifiers/dotnet-purifier -- prefetch
+nix shell 'github:nix-purifiers/dotnet-purifier'
+dotnet-purifier prefetch
 ```
 
 `prefetch` builds the locked packages, the SDK with every runtime the build
@@ -283,9 +287,10 @@ work on it with the locked packages, clone it and run these commands in the
 clone:
 
 ```zsh
+nix shell 'github:nix-purifiers/dotnet-purifier'
 git clone https://github.com/FluentValidation/FluentValidation
 cd FluentValidation
-nix run github:nix-purifiers/dotnet-purifier -- lock
+dotnet-purifier lock
 nix build --impure --expr 'let
   purifier = builtins.getFlake "github:nix-purifiers/dotnet-purifier";
   pkgs = import purifier.inputs.nixpkgs {
@@ -295,7 +300,7 @@ nix build --impure --expr 'let
 in
 (pkgs.dotnet-purifier.buildDotnetProject { src = ./.; })
 .packages.FluentValidation'
-nix run github:nix-purifiers/dotnet-purifier -- dotnet test
+dotnet-purifier dotnet test
 ```
 
 The build gives the package of the main library. Its tests are the
