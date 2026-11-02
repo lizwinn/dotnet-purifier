@@ -314,8 +314,5 @@ FluentValidation as the `src` of the flake.
 
 ## Credits
 
-dotnet-purifier follows the design of
-[sbt-nix-backend](https://github.com/clhodapp/sbt-nix-backend): the tool
-plans the build, a lock run records what it downloads, and Nix builds in
-the sandbox from that lockfile. The purifier idea was inspired by nixcloud's
+The purifier idea was inspired by nixcloud's
 [cargo (libnix)](https://github.com/nixcloud/cargo).
