@@ -49,7 +49,8 @@ Run `dotnet` through the purifier, with the locked packages:
 ```zsh
 nix run github:nix-purifiers/dotnet-purifier -- dotnet build
 nix run github:nix-purifiers/dotnet-purifier -- dotnet test
-nix run github:nix-purifiers/dotnet-purifier -- dotnet run --project src/App
+nix run github:nix-purifiers/dotnet-purifier -- dotnet run \
+  --project src/App
 ```
 
 Every restore reads only the locked packages, with the locked SDK and the
@@ -61,9 +62,12 @@ To add or upgrade a package, edit the project file, or use the SDK's own
 commands with the network, then relock:
 
 ```zsh
-nix run github:nix-purifiers/dotnet-purifier -- update               # every package
-nix run github:nix-purifiers/dotnet-purifier -- update Newtonsoft.Json
-nix run github:nix-purifiers/dotnet-purifier -- lock                 # after editing a project file
+# every package
+nix run github:nix-purifiers/dotnet-purifier -- update
+nix run github:nix-purifiers/dotnet-purifier -- update \
+  Newtonsoft.Json
+# after editing a project file
+nix run github:nix-purifiers/dotnet-purifier -- lock
 ```
 
 `update` runs `dotnet package update` on each project, refreshes any
@@ -90,7 +94,9 @@ runs `dotnet` through the same command.
 To publish the packages Nix built:
 
 ```zsh
-nix run github:nix-purifiers/dotnet-purifier -- publish --source https://api.nuget.org/v3/index.json --api-key "$NUGET_API_KEY"
+nix run github:nix-purifiers/dotnet-purifier -- publish \
+  --source https://api.nuget.org/v3/index.json --api-key \
+  "$NUGET_API_KEY"
 ```
 
 ## Building the project with Nix
@@ -115,7 +121,8 @@ repository or in another one, call the builder in the flake's outputs:
   inputs.dotnet-purifier.url = "github:nix-purifiers/dotnet-purifier";
   inputs.nixpkgs.follows = "dotnet-purifier/nixpkgs";
 
-  outputs = { nixpkgs, dotnet-purifier, ... }:
+  outputs =
+    { nixpkgs, dotnet-purifier, ... }:
     let
       system = "x86_64-linux";
       pkgs = import nixpkgs {
@@ -175,15 +182,15 @@ For an ad hoc build, the builder can also be evaluated directly from the
 project root. Replace the example package name with one from your project:
 
 ```zsh
-nix build --impure --expr '
-  let
-    purifier = builtins.getFlake "github:nix-purifiers/dotnet-purifier";
-    pkgs = import purifier.inputs.nixpkgs {
-      system = builtins.currentSystem;
-      overlays = [ purifier.overlays.default ];
-    };
-  in
-  (pkgs.dotnet-purifier.buildDotnetProject { src = ./.; }).packages.App'
+nix build --impure --expr 'let
+  purifier = builtins.getFlake "github:nix-purifiers/dotnet-purifier";
+  pkgs = import purifier.inputs.nixpkgs {
+    system = builtins.currentSystem;
+    overlays = [ purifier.overlays.default ];
+  };
+in
+(pkgs.dotnet-purifier.buildDotnetProject { src = ./.; })
+.packages.App'
 ```
 
 This uses the purifier's pinned nixpkgs, matching the lock command above.
@@ -289,15 +296,15 @@ clone:
 git clone https://github.com/FluentValidation/FluentValidation
 cd FluentValidation
 nix run github:nix-purifiers/dotnet-purifier -- lock
-nix build --impure --expr '
-  let
-    purifier = builtins.getFlake "github:nix-purifiers/dotnet-purifier";
-    pkgs = import purifier.inputs.nixpkgs {
-      system = builtins.currentSystem;
-      overlays = [ purifier.overlays.default ];
-    };
-  in
-  (pkgs.dotnet-purifier.buildDotnetProject { src = ./.; }).packages.FluentValidation'
+nix build --impure --expr 'let
+  purifier = builtins.getFlake "github:nix-purifiers/dotnet-purifier";
+  pkgs = import purifier.inputs.nixpkgs {
+    system = builtins.currentSystem;
+    overlays = [ purifier.overlays.default ];
+  };
+in
+(pkgs.dotnet-purifier.buildDotnetProject { src = ./.; })
+.packages.FluentValidation'
 nix run github:nix-purifiers/dotnet-purifier -- dotnet test
 ```
 
