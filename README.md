@@ -111,7 +111,8 @@ repository or in another one, call the builder in the flake's outputs:
 ```nix
 # flake.nix
 {
-  inputs.dotnet-purifier.url = "github:nix-purifiers/dotnet-purifier";
+  inputs.dotnet-purifier.url =
+    "github:nix-purifiers/dotnet-purifier";
   inputs.nixpkgs.follows = "dotnet-purifier/nixpkgs";
 
   outputs =
@@ -122,7 +123,9 @@ repository or in another one, call the builder in the flake's outputs:
         inherit system;
         overlays = [ dotnet-purifier.overlays.default ];
       };
-      build = pkgs.dotnet-purifier.buildDotnetProject { src = ./.; };
+      build = pkgs.dotnet-purifier.buildDotnetProject {
+        src = ./.;
+      };
     in
     {
       packages.${system}.default = build.packages.App;
